@@ -7,43 +7,73 @@ from datetime import datetime
 import os
 import re
 import pandas as pd  # Necessário para exportar para Excel/CSV
+from models import Funcionario
 
 # --- FUNÇÕES DE UTILIDADE ---
 
 
-def limpar_moeda(valor_str):
-    if not valor_str:
+def limpar_moeda(valor):
+    if valor is None or valor == "":
         return 0.0
-    limpo = re.sub(r'[R\$\s\.]', '', str(valor_str))
-    limpo = limpo.replace(',', '.')
+
+    if isinstance(valor, (int, float)):
+        return float(valor)
+
+    valor = str(valor)
+    valor = valor.replace("R$", "").replace(" ", "")
+    valor = valor.replace(".", "").replace(",", ".")
+
     try:
-        return float(limpo)
+        return float(valor)
     except ValueError:
         return 0.0
 
 
-def crc16(data):
-    data = data.encode('utf-8')
-    poly = 0x1021
-    res = 0xFFFF
-    for b in data:
-        res ^= (b << 8)
+def crc16(payload):
+    crc = 0xFFFF
+    for char in payload:
+        crc ^= ord(char) << 8
         for _ in range(8):
-            if (res & 0x8000):
-                res = (res << 1) ^ poly
+            if crc & 0x8000:
+                crc = (crc << 1) ^ 0x1021
             else:
-                res = (res << 1)
-            res &= 0xFFFF
-    return f"{res:04X}"
+                crc <<= 1
+            crc &= 0xFFFF
+    return f"{crc:04X}"
 
 
 def gerar_payload_pix(chave, valor, nome_favorecido):
     nome = nome_favorecido[:25].upper()
     valor_str = f"{valor:.2f}"
-    payload = f"00020126{len(f'0014BR.GOV.BCB.PIX01{len(chave):02}{chave}'):02}0014BR.GOV.BCB.PIX01{len(chave):02}{
-        chave}52040000530398654{len(valor_str):02}{valor_str}5802BR59{len(nome):02}{nome}6008BRASILIA62070503***6304"
+
+    gui = "BR.GOV.BCB.PIX"
+    campo_gui = f"0014{gui}"
+    campo_chave = f"01{len(chave):02}{chave}"
+
+    merchant_account = campo_gui + campo_chave
+    merchant_account_len = f"{len(merchant_account):02}"
+
+    # Campo adicional com TXID fixo
+    txid = "PAGAMENTO001"
+    campo_txid = f"05{len(txid):02}{txid}"
+    campo_62 = f"62{len(campo_txid):02}{campo_txid}"
+
+    payload = (
+        "000201"
+        f"26{merchant_account_len}{merchant_account}"
+        "52040000"
+        "5303986"
+        f"54{len(valor_str):02}{valor_str}"
+        "5802BR"
+        f"59{len(nome):02}{nome}"
+        "6008BRASILIA"
+        f"{campo_62}"
+        "6304"
+    )
+
     payload += crc16(payload)
     return payload
+
 
 # --- BANCO DE DADOS ---
 
@@ -78,8 +108,8 @@ def iniciar_db():
 class LoginScreen:
     def __init__(self, root):
         self.root = root
-        self.root.title("Login - Sistema Financeiro")
-        self.root.geometry("500x500")
+        self.root.title("Sistema Financeiro da Marmoraria Jardim")
+        self.root.geometry("400x500")
 
         self.caminho_logo = "img/logo_empresa.png"
         if os.path.exists(self.caminho_logo):
@@ -97,8 +127,12 @@ class LoginScreen:
         tk.Label(root, text="Senha:").pack()
         self.ent_pass = tk.Entry(root, show="*", width=25)
         self.ent_pass.pack(pady=5)
-        tk.Button(root, text="Entrar", command=self.autenticar,
-                  bg="#2e9acc", fg="white", width=20, height=2).pack(pady=30)
+        ttk.Button(
+            root,
+            text="Entrar",
+            command=self.autenticar,
+            style="Primary.TButton"
+        ).pack(pady=30)
 
     def autenticar(self):
         u, s = self.ent_user.get(), self.ent_pass.get()
@@ -123,7 +157,7 @@ class AppFolha:
         self.root = root
         self.perfil = perfil
         self.root.title(f"Sistema Financeiro - {self.perfil}")
-        self.root.geometry("1200x850")
+        self.root.geometry("1200x700")
         self.id_selecionado = None
         self.vars = {k: tk.StringVar() for k in [
             'nome', 'admissao', 'banco', 'pix', 'salario', 'adiantamento', 'va']}
@@ -156,6 +190,21 @@ class AppFolha:
             self.notebook.add(self.aba_users, text=" 👤 Gerenciar Usuários ")
             self.montar_aba_usuarios()
 
+            def buscar_funcionario_por_id(self, funcionario_id):
+                conn = sqlite3.connect('folha_pagamentos.db')
+                c = conn.cursor()
+
+                c.execute("""
+                SELECT nome, admissao, banco, chave_pix,
+                    salario_liquido, adiantamento, va
+                FROM funcionarios
+                WHERE id = ?
+                """, (funcionario_id,))
+
+                dados = c.fetchone()
+                conn.close()
+                return dados
+
     def montar_aba_funcionarios(self):
         if self.perfil == "Master":
             frame_cfg = tk.LabelFrame(
@@ -179,11 +228,11 @@ class AppFolha:
                   ("Chave PIX:", 'pix'), ("Salário R$:", 'salario'), ("Adiant. (Vale) R$:", 'adiantamento'), ("VA R$:", 'va')]
         for i, (l, v) in enumerate(campos):
             tk.Label(self.frame_in, text=l).grid(row=0, column=i*2, padx=2)
-            tk.Entry(self.frame_in, textvariable=self.vars[v], width=11).grid(
+            tk.Entry(self.frame_in, textvariable=self.vars[v], width=15).grid(
                 row=0, column=i*2+1)
 
         self.btn_salvar = tk.Button(
-            self.frame_in, text="Salvar Funcionário", command=self.salvar, bg="#2ecc71", fg="white")
+            self.frame_in, text="Salvar Funcionário", command=self.salvar, bg="#2e9acc", fg="white")
         self.btn_salvar.grid(row=1, column=0, columnspan=14,
                              pady=10, sticky="nsew")
 
@@ -206,6 +255,7 @@ class AppFolha:
             frame_ac, text="✏️ Editar", command=self.preparar_edicao, width=10).pack(side="left", padx=5)
         tk.Button(frame_ac, text="📊 Relatórios", command=self.abrir_historico,
                   bg="#8e44ad", fg="white", width=15).pack(side="left", padx=20)
+
         self.btn_del = tk.Button(
             frame_ac, text="🗑️ Remover", command=self.remover, bg="#e74c3c", fg="white").pack(side="right")
 
@@ -235,7 +285,7 @@ class AppFolha:
     def abrir_historico(self):
         jh = tk.Toplevel(self.root)
         jh.title("Relatórios Financeiros")
-        jh.geometry("950x600")
+        jh.geometry("800x600")
         f = tk.Frame(jh)
         f.pack(pady=10)
         tk.Label(f, text="Mês (MM):").pack(side="left")
@@ -387,19 +437,27 @@ class AppFolha:
     def salvar(self):
         if self.perfil != "Master":
             return
-        d = [self.vars['nome'].get(), self.vars['admissao'].get(), self.vars['banco'].get(), self.vars['pix'].get(),
-             limpar_moeda(self.vars['salario'].get()), limpar_moeda(self.vars['va'].get()), limpar_moeda(self.vars['adiantamento'].get())]
-        conn = sqlite3.connect('folha_pagamentos.db')
-        c = conn.cursor()
-        if self.id_selecionado:
-            c.execute("UPDATE funcionarios SET nome=?, admissao=?, banco=?, chave_pix=?, salario_liquido=?, va=?, adiantamento=? WHERE id=?", (*d, self.id_selecionado))
-            self.id_selecionado = None
-            self.btn_salvar.config(text="Salvar Funcionário", bg="#2ecc71")
+
+        if not hasattr(self, "funcionario_em_edicao") or self.funcionario_em_edicao is None:
+            funcionario = Funcionario()
         else:
-            c.execute(
-                "INSERT INTO funcionarios (nome, admissao, banco, chave_pix, salario_liquido, va, adiantamento) VALUES (?,?,?,?,?,?,?)", d)
-        conn.commit()
-        conn.close()
+            funcionario = self.funcionario_em_edicao
+
+        funcionario.nome = self.vars['nome'].get()
+        funcionario.admissao = self.vars['admissao'].get()
+        funcionario.banco = self.vars['banco'].get()
+        funcionario.chave_pix = self.vars['pix'].get()
+        funcionario.salario = limpar_moeda(self.vars['salario'].get())
+        funcionario.adiantamento = limpar_moeda(
+            self.vars['adiantamento'].get())
+        funcionario.va = limpar_moeda(self.vars['va'].get())
+
+        funcionario.salvar()
+
+        self.funcionario_em_edicao = None
+        self.id_selecionado = None
+
+        self.btn_salvar.config(text="Salvar Funcionário")
         [v.set("") for v in self.vars.values()]
         self.atualizar_tabela()
 
@@ -427,13 +485,26 @@ class AppFolha:
         sel = self.tree.selection()
         if not sel:
             return
-        it = self.tree.item(sel)['values']
-        self.id_selecionado = it[0]
-        ks = ['nome', 'admissao', 'banco', 'pix',
-              'salario', 'adiantamento', 'va']
-        for i, k in enumerate(ks):
-            self.vars[k].set(it[i+1])
-        self.btn_salvar.config(text="Confirmar Alteração ✅", bg="#e67e22")
+
+        funcionario_id = self.tree.item(sel)['values'][0]
+
+        funcionario = Funcionario.buscar_por_id(funcionario_id)
+        if not funcionario:
+            messagebox.showerror("Erro", "Funcionário não encontrado.")
+            return
+
+        self.funcionario_em_edicao = funcionario
+        self.id_selecionado = funcionario.id  # segurança
+
+        self.vars['nome'].set(funcionario.nome)
+        self.vars['admissao'].set(funcionario.admissao)
+        self.vars['banco'].set(funcionario.banco)
+        self.vars['pix'].set(funcionario.chave_pix)
+        self.vars['salario'].set(f"{funcionario.salario:.2f}")
+        self.vars['adiantamento'].set(f"{funcionario.adiantamento:.2f}")
+        self.vars['va'].set(f"{funcionario.va:.2f}")
+
+        self.btn_salvar.config(text="Confirmar Alteração ✅")
 
     def marcar_pago(self):
         sel = self.tree.selection()
@@ -475,8 +546,11 @@ class AppFolha:
             payload = gerar_payload_pix(str(it[4]), valor, it[1])
             jq = tk.Toplevel(win_q)
             jq.title(f"QR {t}")
-            im = ImageTk.PhotoImage(qrcode.make(payload).resize((250, 250)))
-            tk.Label(jq, image=im).pack(pady=10)
+            img = qrcode.make(payload).resize((250, 250))
+            im = ImageTk.PhotoImage(img)
+            lbl_img = tk.Label(jq, image=im)
+            lbl_img.image = im
+            lbl_img.pack(pady=10)
             tk.Label(jq, text=f"R$ {valor:.2f}", font="bold").pack()
             e = tk.Entry(jq, width=40)
             e.insert(0, payload)
