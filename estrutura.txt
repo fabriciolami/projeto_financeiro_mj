@@ -1,0 +1,25 @@
+projeto_financeiro/
+│
+├── main.py              # Ponto de entrada (inicia o app)
+├── config.py            # Variáveis globais (CIDADE_PIX, UF_PIX, DB_CONFIG)
+├── database/            # Tudo relacionado ao banco de dados
+│   ├── connection.py    # Função get_conn
+│   └── schema.sql       # Script de criação das tabelas (DICA)
+│
+├── models/              # Classes de dados (Lógica de negócio)
+│   ├── __init__.py
+│   └── funcionario.py   # Classe Funcionario
+│
+├── views/               # Interface Gráfica (Tkinter)
+│   ├── __init__.py
+│   ├── login_screen.py  # Classe LoginScreen
+│   ├── main_app.py      # Classe App (Janela Principal)
+│   └── components/      # Componentes reutilizáveis (frames, botões custom)
+│
+├── services/            # Lógica externa e utilitários
+│   ├── pix_service.py   # Funções crc16 e gerar_payload_pix
+│   ├── export_service.py # Lógica de Excel e PDF
+│   └── auth_service.py  # Lógica de verificação de login
+│
+└── assets/              # Arquivos estáticos
+    └── icons/           # Ícones e imagens
