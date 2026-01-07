@@ -247,18 +247,21 @@ class AppFolha:
 
         frame_ac = tk.Frame(self.aba_func)
         frame_ac.pack(fill="x", padx=10, pady=10)
-        tk.Button(frame_ac, text="🖼️ GERAR PIX", command=self.abrir_janela_qr,
-                  bg="#3498db", fg="white", width=15).pack(side="left", padx=5)
-        tk.Button(frame_ac, text="✅ MARCAR PAGO", command=self.marcar_pago,
+
+        tk.Button(frame_ac, text="Gerar PIX", command=self.abrir_janela_qr,
+                  bg="#3498db", fg="white", width=18).pack(side="left", padx=5)
+        
+        tk.Button(frame_ac, text="Marcar Pago", command=self.marcar_pago,
                   bg="#27ae60", fg="white", width=18).pack(side="left", padx=5)
+        
         self.btn_edit = tk.Button(
-            frame_ac, text="✏️ Editar", command=self.preparar_edicao, width=10).pack(side="left", padx=5)
-        tk.Button(frame_ac, text="📊 Relatórios", command=self.abrir_historico,
-                  bg="#8e44ad", fg="white", width=15).pack(side="left", padx=20)
-
+            frame_ac, text="Editar", command=self.preparar_edicao, width=18).pack(side="left", padx=5)
+        tk.Button(frame_ac, text="Relatórios", command=self.abrir_historico,
+                  bg="#8e44ad", fg="white", width=18).pack(side="left", padx=50)
+        
         self.btn_del = tk.Button(
-            frame_ac, text="🗑️ Remover", command=self.remover, bg="#e74c3c", fg="white").pack(side="right")
-
+            frame_ac, text="Deletar", command=self.remover, bg="#e74c3c", fg="white").pack(side="right")
+        
     def montar_aba_usuarios(self):
         frame_u = tk.LabelFrame(
             self.aba_users, text=" Alterar Acessos ", padx=20, pady=20)
@@ -271,7 +274,7 @@ class AppFolha:
         tk.Label(frame_u, text="Nova Senha:").grid(row=1, column=0, pady=5)
         tk.Entry(frame_u, textvariable=self.pass_var, width=30).grid(
             row=1, column=1, pady=5, padx=10)
-        tk.Button(frame_u, text="💾 Atualizar Acesso", command=self.atualizar_usuario_db,
+        tk.Button(frame_u, text="Atualizar Acesso", command=self.atualizar_usuario_db,
                   bg="#2ecc71", fg="white").grid(row=2, column=1, pady=20)
         self.tree_users = ttk.Treeview(self.aba_users, columns=(
             "ID", "Login", "Perfil"), show="headings", height=5)
@@ -366,12 +369,12 @@ class AppFolha:
                 conn.close()
                 carregar()
 
-        tk.Button(f, text="🔍 Filtrar", command=carregar,
+        tk.Button(f, text="Filtrar", command=carregar,
                   bg="#3498db", fg="white").pack(side="left", padx=5)
-        tk.Button(f, text="📥 Exportar para Excel", command=exportar_excel,
+        tk.Button(f, text="Exportar para Excel", command=exportar_excel,
                   bg="#27ae60", fg="white").pack(side="left", padx=5)
         if self.perfil == "Master":
-            tk.Button(f, text="🗑️ Deletar Registro", command=deletar,
+            tk.Button(f, text="Deletar Registro", command=deletar,
                       bg="#e74c3c", fg="white").pack(side="right", padx=10)
         carregar()
 
