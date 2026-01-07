@@ -1,4 +1,4 @@
-import sqlite3
+from db import get_conn
 
 
 class Funcionario:
@@ -15,14 +15,14 @@ class Funcionario:
 
     @staticmethod
     def buscar_por_id(funcionario_id):
-        conn = sqlite3.connect('folha_pagamentos.db')
+        conn = get_conn()
         c = conn.cursor()
 
         c.execute("""
             SELECT id, nome, admissao, banco, chave_pix,
                    salario_liquido, adiantamento, va
             FROM funcionarios
-            WHERE id = ?
+            WHERE id = %s
         """, (funcionario_id,))
 
         row = c.fetchone()
@@ -35,22 +35,22 @@ class Funcionario:
                 admissao=row[2],
                 banco=row[3],
                 chave_pix=row[4],
-                salario=row[5],
-                adiantamento=row[6],
-                va=row[7]
+                salario=float(row[5]),
+                adiantamento=float(row[6]),
+                va=float(row[7])
             )
         return None
 
     def salvar(self):
-        conn = sqlite3.connect('folha_pagamentos.db')
+        conn = get_conn()
         c = conn.cursor()
 
         if self.id:
             c.execute("""
                 UPDATE funcionarios
-                SET nome=?, admissao=?, banco=?, chave_pix=?,
-                    salario_liquido=?, adiantamento=?, va=?
-                WHERE id=?
+                SET nome=%s, admissao=%s, banco=%s, chave_pix=%s,
+                    salario_liquido=%s, adiantamento=%s, va=%s
+                WHERE id=%s
             """, (
                 self.nome, self.admissao, self.banco, self.chave_pix,
                 self.salario, self.adiantamento, self.va, self.id
@@ -60,12 +60,13 @@ class Funcionario:
                 INSERT INTO funcionarios
                 (nome, admissao, banco, chave_pix,
                  salario_liquido, adiantamento, va)
-                VALUES (?,?,?,?,?,?,?)
+                VALUES (%s,%s,%s,%s,%s,%s,%s)
+                RETURNING id
             """, (
                 self.nome, self.admissao, self.banco, self.chave_pix,
                 self.salario, self.adiantamento, self.va
             ))
-            self.id = c.lastrowid
+            self.id = c.fetchone()[0]
 
         conn.commit()
         conn.close()
