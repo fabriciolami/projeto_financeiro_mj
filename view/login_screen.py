@@ -1,8 +1,9 @@
-# views/login_screen.py
+# view/login_screen.py
 import tkinter as tk
 from tkinter import messagebox
-from db import get_conn # Assumindo que seu arquivo db.py continua na raiz ou pasta database
-from views.main_app import MainApp # Importaremos a classe principal daqui
+import db
+db.get_conn() # Assumindo que seu arquivo db.py continua na raiz ou pasta database
+from view.main_app import MainApp # Importaremos a classe principal daqui
 
 class LoginScreen:
     def __init__(self, root):

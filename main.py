@@ -1,6 +1,6 @@
 # main.py
 import tkinter as tk
-from views.login_screen import LoginScreen
+from view.login_screen import LoginScreen
 
 if __name__ == "__main__":
     root = tk.Tk()
