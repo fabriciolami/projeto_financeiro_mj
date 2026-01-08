@@ -11,20 +11,7 @@ from db import get_conn
 from models.models import Funcionario 
 from services.pix_service import gerar_payload_pix # Importando do novo serviço
 
-class MainApp: # Renomeei de App para MainApp para ficar mais explícito
-    def __init__(self, root, perfil):
-        self.root = root
-        self.perfil = perfil
-        root.title(f"Sistema Financeiro - {perfil}")
-        root.geometry("1200x700")
-        
-        self.vars = {k: tk.StringVar() for k in
-                     ["nome", "admissao", "banco", "pix", "salario", "adiant", "va"]}
-        self.func_edit = None
-        self.build()
-        self.load_table()
-        self.apply_permissions() # Aplica permissões com base no perfil
-    
+
     # ================= APP ================= #
 
 class App:
@@ -41,7 +28,7 @@ class App:
 
         self.build()
         self.load_table()
-        self.apply_permissions()
+        self.aplicar_permissoes()
 
     # ---------- UI ---------- #
 
@@ -145,6 +132,10 @@ class App:
         conn.commit()
         conn.close()
         self.load_table()
+
+    def aplicar_permissoes(self):
+        if self.perfil == "Financeiro":
+            self.btn_salvar.config(state="disabled")
 
     # ---------- PIX ---------- #
 
