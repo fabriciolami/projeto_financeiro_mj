@@ -22,8 +22,8 @@ def gerar_payload_pix(chave, valor, nome, txid):
     payload = (
         campo("00", "01") +
         campo("26",
-            campo("00", "BR.GOV.BCB.PIX") +
-            campo("01", chave)
+        campo("00", "BR.GOV.BCB.PIX") +
+        campo("01", chave)
         ) +
         campo("52", "0000") +
         campo("53", "986") +

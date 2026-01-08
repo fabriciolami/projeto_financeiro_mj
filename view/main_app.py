@@ -1,4 +1,4 @@
-# views/main_app.py
+# view/main_app.py
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from datetime import datetime
@@ -8,7 +8,7 @@ import pandas as pd
 
 # Importações ajustadas para a nova estrutura
 from db import get_conn 
-from models.models import Funcionario 
+from models import Funcionario 
 from services.pix_service import gerar_payload_pix # Importando do novo serviço
 
 
@@ -32,7 +32,8 @@ class App:
 
     # ---------- UI ---------- #
 
-        # ---------- PERÍODO DE PAGAMENTO ----------
+    # ---------- PERÍODO DE PAGAMENTO ----------
+    def build(self):    
         periodo = tk.LabelFrame(self.root, text="Período de Pagamento", padx=10, pady=5)
         periodo.pack(fill="x", padx=10, pady=5)
 
@@ -48,9 +49,8 @@ class App:
         hoje = datetime.now()
         self.ent_mes_pgto.insert(0, str(hoje.month))
         self.ent_ano_pgto.insert(0, str(hoje.year))
-
-
-    def build(self):
+        
+        # ---------- FORMULÁRIO ---------- #
         form = tk.LabelFrame(self.root, text="Funcionário", padx=10, pady=10)
         form.pack(fill="x", padx=10, pady=5)
 
@@ -153,64 +153,64 @@ class App:
 
     def aplicar_permissoes(self):
         if self.perfil == "Financeiro":
-            self.btn_salvar.config(state="disabled")
+            self.btn_save.config(state="disabled")
 
     # ---------- PIX ---------- #
 
-def pix(self):
-    sel = self.tree.selection()
-    if not sel:
-        return
-    fid = self.tree.item(sel)["values"][0]
-    f = Funcionario.buscar_por_id(fid)
-
-    win = tk.Toplevel(self.root)
-    win.title("Tipo de Pagamento")
-
-    opt = tk.StringVar(value="sal")
-
-    tk.Radiobutton(win, text="Salário + VA", variable=opt, value="sal").pack(anchor="w")
-    tk.Radiobutton(win, text="Adiantamento", variable=opt, value="adiant").pack(anchor="w")
-
-    def gerar():
-        valor = f.salario + f.va if opt.get() == "sal" else f.adiantamento
-        tipo = "SAL" if opt.get() == "sal" else "ADI"
-
-        mes = self.ent_mes_pgto.get()
-        ano = self.ent_ano_pgto.get()
-
-        if not mes or not ano:
-            messagebox.showerror("Erro", "Informe o mês e o ano do pagamento")
+    def pix(self):
+        sel = self.tree.selection()
+        if not sel:
             return
+        fid = self.tree.item(sel)["values"][0]
+        f = Funcionario.buscar_por_id(fid)
 
-        try:
-            mes_int = int(mes)
-            ano_int = int(ano)
-        except ValueError:
-            messagebox.showerror("Erro", "Mês/Ano inválidos")
-            return
+        win = tk.Toplevel(self.root)
+        win.title("Tipo de Pagamento")
 
-        if mes_int < 1 or mes_int > 12:
-            messagebox.showerror("Erro", "Mês inválido (1 a 12)")
-            return
+        opt = tk.StringVar(value="sal")
 
-        # data lógica para o PIX (não precisa ser dia real)
-        data = f"{ano_int}{mes_int:02}01"
+        tk.Radiobutton(win, text="Salário + VA", variable=opt, value="sal").pack(anchor="w")
+        tk.Radiobutton(win, text="Adiantamento", variable=opt, value="adiant").pack(anchor="w")
 
-        txid = f"{tipo}{data}{f.id}"
+        def gerar():
+            valor = f.salario + f.va if opt.get() == "sal" else f.adiantamento
+            tipo = "SAL" if opt.get() == "sal" else "ADI"
 
-        payload = gerar_payload_pix(
-            f.chave_pix,
-            valor,
-            f.nome,
-            txid
+            mes = self.ent_mes_pgto.get()
+            ano = self.ent_ano_pgto.get()
+
+            if not mes or not ano:
+                messagebox.showerror("Erro", "Informe o mês e o ano do pagamento")
+                return
+
+            try:
+                mes_int = int(mes)
+                ano_int = int(ano)
+            except ValueError:
+                messagebox.showerror("Erro", "Mês/Ano inválidos")
+                return
+
+            if mes_int < 1 or mes_int > 12:
+                messagebox.showerror("Erro", "Mês inválido (1 a 12)")
+                return
+
+            # data lógica para o PIX (não precisa ser dia real)
+            data = f"{ano_int}{mes_int:02}01"
+
+            txid = f"{tipo}{data}{f.id}"
+
+            payload = gerar_payload_pix(
+                f.chave_pix,
+                valor,
+                f.nome,
+                txid
     )
 
-        img = qrcode.make(payload).resize((300, 300))
-        imgtk = ImageTk.PhotoImage(img)
-        qr = tk.Toplevel(self.root)
-        tk.Label(qr, image=imgtk).pack()
-        qr.image = imgtk
+            img = qrcode.make(payload).resize((300, 300))
+            imgtk = ImageTk.PhotoImage(img)
+            qr = tk.Toplevel(self.root)
+            tk.Label(qr, image=imgtk).pack()
+            qr.image = imgtk
 
         tk.Button(win, text="Gerar QR Code", command=gerar).pack(pady=10)
 
@@ -228,21 +228,24 @@ def pix(self):
 
         conn = get_conn()
         c = conn.cursor()
-        hoje = datetime.now()
-        mes = hoje.month
-        ano = hoje.year
+        mes = int(self.ent_mes_pgto.get())
+        ano = int(self.ent_ano_pgto.get())
+
+        data = f"{ano}{mes:02}01"
+        txid = f"SAL{data}{f.id}"
 
         c.execute("""
             INSERT INTO historico_pagamentos
-            (funcionario_id, data, mes, ano, tipo, valor)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            (funcionario_id, data, mes, ano, tipo, valor, txid)
+            VALUES (%s,%s,%s,%s,%s,%s,%s)
         """, (
             fid,
-            hoje.date(),
+            datetime.now().date(),
             str(mes),   # mantém compatível com coluna TEXT
             str(ano),
             tipo,
-            valor
+            valor,
+            txid
 ))
 
         conn.commit()
@@ -289,7 +292,7 @@ def pix(self):
 
         dados_cache = []
 
-        # ---------- FILTRAR ----------
+    # ---------- FILTRAR ----------
         def filtrar():
             tree.delete(*tree.get_children())
             dados_cache.clear()
@@ -322,8 +325,8 @@ def pix(self):
                     COALESCE(SUM(CASE WHEN h.tipo='Adiantamento' THEN h.valor END), 0)
                 FROM historico_pagamentos h
                 JOIN funcionarios f ON f.id = h.funcionario_id
-                WHERE h.mes::int = %s
-                AND h.ano::int = %s
+                WHERE h.mes = %s
+                    AND h.ano = %s
                 GROUP BY f.id, f.nome
                 ORDER BY f.nome
             """, (mes, ano))
@@ -348,17 +351,18 @@ def pix(self):
                     f"R$ {salario:.2f}",
                     f"R$ {adiant:.2f}",
                     f"R$ {total:.2f}"
-                ))
+        ))
 
                 dados_cache.append([r[0], r[1], salario, adiant, total])
 
             lbl_totais.config(
                 text=(
-                    f"Total Salários: R$ {total_sal:.2f} | "
-                    f"Total Adiantamentos: R$ {total_adi:.2f} | "
+                    f"Total Salários: R$ {total_sal:.2f}    "
+                    f"Total Adiantamentos: R$ {total_adi:.2f}    "
                     f"Total Geral: R$ {total_geral:.2f}"
-            )
         )
+    )
+
 
     # ---------- EXPORTAR EXCEL ----------
         def exportar_excel():
