@@ -23,7 +23,7 @@ class LoginScreen:
 
     def login(self):
         # DICA: Use 'with' para garantir fechamento da conexão
-        conn = get_conn()
+        conn = db.get_conn()
         try:
             with conn.cursor() as c:
                 c.execute(
