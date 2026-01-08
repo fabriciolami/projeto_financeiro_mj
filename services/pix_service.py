@@ -1,5 +1,5 @@
 # services/pix_service.py
-from config import CIDADE_PIX, UF_PIX
+from config import CIDADE_PIX
 
 def crc16(payload):
     crc = 0xFFFF
@@ -11,8 +11,9 @@ def crc16(payload):
     return f"{crc:04X}"
 
 def gerar_payload_pix(chave, valor, nome, txid):
+    chave = chave.strip()  # NÃO remover caracteres
     nome = nome[:25].upper()
-    cidade = f"{CIDADE_PIX}/{UF_PIX}"
+    cidade = CIDADE_PIX[:15].upper()  # 🔥 SEM UF, SEM BARRA
     valor_str = f"{valor:.2f}"
 
     def campo(id, valor):
@@ -21,8 +22,8 @@ def gerar_payload_pix(chave, valor, nome, txid):
     payload = (
         campo("00", "01") +
         campo("26",
-              campo("00", "BR.GOV.BCB.PIX") +
-              campo("01", chave)
+            campo("00", "BR.GOV.BCB.PIX") +
+            campo("01", chave)
         ) +
         campo("52", "0000") +
         campo("53", "986") +
@@ -31,7 +32,7 @@ def gerar_payload_pix(chave, valor, nome, txid):
         campo("59", nome) +
         campo("60", cidade) +
         campo("62",
-              campo("05", txid)
+            campo("05", txid)
         )
     )
 

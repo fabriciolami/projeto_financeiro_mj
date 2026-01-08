@@ -32,6 +32,24 @@ class App:
 
     # ---------- UI ---------- #
 
+        # ---------- PERÍODO DE PAGAMENTO ----------
+        periodo = tk.LabelFrame(self.root, text="Período de Pagamento", padx=10, pady=5)
+        periodo.pack(fill="x", padx=10, pady=5)
+
+        tk.Label(periodo, text="Mês").pack(side="left")
+        self.ent_mes_pgto = tk.Entry(periodo, width=5)
+        self.ent_mes_pgto.pack(side="left", padx=5)
+
+        tk.Label(periodo, text="Ano").pack(side="left")
+        self.ent_ano_pgto = tk.Entry(periodo, width=8)
+        self.ent_ano_pgto.pack(side="left", padx=5)
+
+        # valor padrão = mês atual
+        hoje = datetime.now()
+        self.ent_mes_pgto.insert(0, str(hoje.month))
+        self.ent_ano_pgto.insert(0, str(hoje.year))
+
+
     def build(self):
         form = tk.LabelFrame(self.root, text="Funcionário", padx=10, pady=10)
         form.pack(fill="x", padx=10, pady=5)
@@ -139,38 +157,60 @@ class App:
 
     # ---------- PIX ---------- #
 
-    def pix(self):
-        sel = self.tree.selection()
-        if not sel:
+def pix(self):
+    sel = self.tree.selection()
+    if not sel:
+        return
+    fid = self.tree.item(sel)["values"][0]
+    f = Funcionario.buscar_por_id(fid)
+
+    win = tk.Toplevel(self.root)
+    win.title("Tipo de Pagamento")
+
+    opt = tk.StringVar(value="sal")
+
+    tk.Radiobutton(win, text="Salário + VA", variable=opt, value="sal").pack(anchor="w")
+    tk.Radiobutton(win, text="Adiantamento", variable=opt, value="adiant").pack(anchor="w")
+
+    def gerar():
+        valor = f.salario + f.va if opt.get() == "sal" else f.adiantamento
+        tipo = "SAL" if opt.get() == "sal" else "ADI"
+
+        mes = self.ent_mes_pgto.get()
+        ano = self.ent_ano_pgto.get()
+
+        if not mes or not ano:
+            messagebox.showerror("Erro", "Informe o mês e o ano do pagamento")
             return
-        fid = self.tree.item(sel)["values"][0]
-        f = Funcionario.buscar_por_id(fid)
 
-        win = tk.Toplevel(self.root)
-        win.title("Tipo de Pagamento")
+        try:
+            mes_int = int(mes)
+            ano_int = int(ano)
+        except ValueError:
+            messagebox.showerror("Erro", "Mês/Ano inválidos")
+            return
 
-        opt = tk.StringVar(value="sal")
+        if mes_int < 1 or mes_int > 12:
+            messagebox.showerror("Erro", "Mês inválido (1 a 12)")
+            return
 
-        tk.Radiobutton(win, text="Salário + VA", variable=opt, value="sal").pack(anchor="w")
-        tk.Radiobutton(win, text="Adiantamento", variable=opt, value="adiant").pack(anchor="w")
+        # data lógica para o PIX (não precisa ser dia real)
+        data = f"{ano_int}{mes_int:02}01"
 
-        def gerar():
-            valor = f.salario + f.va if opt.get() == "sal" else f.adiantamento
-            data = datetime.now().strftime("%Y%m%d")
-            tipo = "SAL" if opt.get() == "sal" else "ADI"
-            txid = f"{tipo}{data}{f.id}"
+        txid = f"{tipo}{data}{f.id}"
 
-            payload = gerar_payload_pix(
-                f.chave_pix,
-                valor,
-                f.nome,
-                txid
-)
-            img = qrcode.make(payload).resize((300, 300))
-            imgtk = ImageTk.PhotoImage(img)
-            qr = tk.Toplevel(self.root)
-            tk.Label(qr, image=imgtk).pack()
-            qr.image = imgtk
+        payload = gerar_payload_pix(
+            f.chave_pix,
+            valor,
+            f.nome,
+            txid
+    )
+
+        img = qrcode.make(payload).resize((300, 300))
+        imgtk = ImageTk.PhotoImage(img)
+        qr = tk.Toplevel(self.root)
+        tk.Label(qr, image=imgtk).pack()
+        qr.image = imgtk
 
         tk.Button(win, text="Gerar QR Code", command=gerar).pack(pady=10)
 
