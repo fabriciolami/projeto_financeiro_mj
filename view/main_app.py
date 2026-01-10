@@ -8,7 +8,9 @@ from PIL import ImageTk
 import pandas as pd
 
 
-from db import get_conn 
+from db import get_conn
+from db import buscar_configs
+from db import salvar_configs
 from models import Funcionario 
 from services.pix_service import gerar_payload_pix # Importando do novo serviço
 from styles import BTN_VERDE, BTN_AZUL, BTN_ROXO, BTN_PADRAO, BTN_VERMELHO
@@ -51,8 +53,34 @@ class App:
         hoje = datetime.now()
         self.ent_mes_pgto.insert(0, str(hoje.month))
         self.ent_ano_pgto.insert(0, str(hoje.year))
+
+        # ---- CONFIGURAÇÃO DE DIAS DE PAGAMENTO ----
+        tk.Label(periodo, text="Dia Salário").pack(side="left", padx=(15, 2))
+        self.ent_dia_sal = tk.Entry(periodo, width=4)
+        self.ent_dia_sal.pack(side="left", padx=5)
+
+        tk.Label(periodo, text="Dia Adiant.").pack(side="left", padx=(10, 2))
+        self.ent_dia_adiant = tk.Entry(periodo, width=4)
+        self.ent_dia_adiant.pack(side="left", padx=5)
+
+        self.btn_salvar_datas = tk.Button(
+            periodo,
+            text="Salvar Datas",
+            command=self.salvar_datas_pgto
+        )
+        self.btn_salvar_datas.pack(side="left", padx=15)
+
+        cfg = buscar_configs()
+        if cfg:
+            self.ent_dia_sal.insert(0, str(cfg[0]))
+            self.ent_dia_adiant.insert(0, str(cfg[1]))
         
-        # ---------- FORMULÁRIO ---------- #
+        if self.perfil.lower() != "master":
+            self.ent_dia_sal.config(state="disabled")
+            self.ent_dia_adiant.config(state="disabled")
+            self.btn_salvar_datas.config(state="disabled")
+
+        # ---------- FORMULÁRIO ----------
         form = tk.LabelFrame(self.root, text="Funcionário", padx=10, pady=10)
         form.pack(fill="x", padx=10, pady=5)
 
@@ -74,7 +102,7 @@ class App:
         actions_form = tk.Frame(form)
         actions_form.grid(row=0, column=14, columnspan=6, padx=(30, 0), sticky="e")
 
-        self.btn_save = tk.Button(actions_form, text="Salvar", command=self.save,**BTN_VERDE)
+        self.btn_save = tk.Button(actions_form, text="Salvar", command=self.save, **BTN_VERDE)
         self.btn_save.pack(side="left", padx=5)
         add_hover(self.btn_save, bg_hover="#1d8d4c")
 
@@ -92,7 +120,7 @@ class App:
         for c in cols:
             self.tree.heading(c, text=c)
             self.tree.column(c, width=150, anchor="center")
-
+        
         self.tree.pack(fill="both", expand=True, padx=10, pady=5)
 
         btns = tk.Frame(self.root)
@@ -110,6 +138,20 @@ class App:
         btn_rel.pack(side="left", padx=10)
         add_hover(btn_rel, bg_hover="#8e44ad")
 
+    def salvar_datas_pgto(self):
+        try:
+            dia_sal = int(self.ent_dia_sal.get())
+            dia_adiant = int(self.ent_dia_adiant.get())
+        except ValueError:
+            alert("Erro", "Os dias devem ser números inteiros")
+            return
+
+        if not (1 <= dia_sal <= 31 and 1 <= dia_adiant <= 31):
+            alert("Erro", "Os dias devem estar entre 1 e 31")
+            return
+
+        salvar_configs(dia_sal, dia_adiant)
+        alert("Sucesso", "Datas de pagamento salvas com sucesso")
 
         
     # ---------- CRUD ---------- #
@@ -228,7 +270,7 @@ class App:
 
         rb_adi = tk.Radiobutton(
             container,
-            text="Adiantamento + Vale",
+            text="Adiantamento",
             variable=tipo_pgto,
             value="adiant"
         )
