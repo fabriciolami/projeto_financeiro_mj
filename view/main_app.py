@@ -1,4 +1,5 @@
 # view/main_app.py
+from utils.alerts import alert
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from datetime import datetime
@@ -6,11 +7,12 @@ import qrcode
 from PIL import ImageTk
 import pandas as pd
 
-# Importações ajustadas para a nova estrutura
+
 from db import get_conn 
 from models import Funcionario 
 from services.pix_service import gerar_payload_pix # Importando do novo serviço
-
+from styles import BTN_VERDE, BTN_AZUL, BTN_ROXO, BTN_PADRAO, BTN_VERMELHO
+from styles import add_hover
 
     # ================= APP ================= #
 
@@ -19,7 +21,7 @@ class App:
         self.root = root
         self.perfil = perfil
         root.title(f"Sistema Financeiro - {perfil}")
-        root.geometry("1200x700")
+        root.geometry("1300x750")
 
         self.vars = {k: tk.StringVar() for k in
                      ["nome", "admissao", "banco", "pix", "salario", "adiant", "va"]}
@@ -68,8 +70,21 @@ class App:
             tk.Label(form, text=lbl).grid(row=0, column=i * 2)
             tk.Entry(form, textvariable=self.vars[var], width=15).grid(row=0, column=i * 2 + 1)
 
-        self.btn_save = tk.Button(form, text="Salvar", command=self.save)
-        self.btn_save.grid(row=1, column=0, columnspan=14, pady=10)
+        # frame de ações do formulário
+        actions_form = tk.Frame(form)
+        actions_form.grid(row=0, column=14, columnspan=6, padx=(30, 0), sticky="e")
+
+        self.btn_save = tk.Button(actions_form, text="Salvar", command=self.save,**BTN_VERDE)
+        self.btn_save.pack(side="left", padx=5)
+        add_hover(self.btn_save, bg_hover="#1d8d4c")
+
+        self.btn_edit = tk.Button(actions_form, text="Editar", command=self.edit, **BTN_PADRAO)
+        self.btn_edit.pack(side="left", padx=5)
+        add_hover(self.btn_edit, bg_hover="#a7a7a7")
+
+        self.btn_delete = tk.Button(actions_form, text="Excluir", command=self.delete, **BTN_VERMELHO)
+        self.btn_delete.pack(side="left", padx=5)
+        add_hover(self.btn_delete, bg_hover="#c43020")
 
         cols = ("ID", "Nome", "Banco", "Salário", "VA", "Adiant.", "Total")
         self.tree = ttk.Treeview(self.root, columns=cols, show="headings")
@@ -81,14 +96,22 @@ class App:
         self.tree.pack(fill="both", expand=True, padx=10, pady=5)
 
         btns = tk.Frame(self.root)
-        btns.pack(pady=10)
+        btns.pack(pady=15)
 
-        tk.Button(btns, text="Editar", command=self.edit).pack(side="left", padx=5)
-        tk.Button(btns, text="Excluir", command=self.delete).pack(side="left", padx=5)
-        tk.Button(btns, text="Gerar PIX", command=self.pix).pack(side="left", padx=5)
-        tk.Button(btns, text="Marcar Pago", command=self.mark_paid).pack(side="left", padx=5)
-        tk.Button(btns, text="Relatórios", command=self.reports).pack(side="left", padx=5)
+        btn_pix = tk.Button(btns, text="Gerar PIX", command=self.pix, width=10, **BTN_VERDE)
+        btn_pix.pack(side="left", padx=10)
+        add_hover(btn_pix, bg_hover="#27ae60")
 
+        btn_pago = tk.Button(btns, text="Marcar Pago", command=self.mark_paid, **BTN_AZUL)
+        btn_pago.pack(side="left", padx=10)
+        add_hover(btn_pago, bg_hover="#2980b9")
+
+        btn_rel = tk.Button(btns, text="Relatórios", command=self.reports, **BTN_ROXO)
+        btn_rel.pack(side="left", padx=10)
+        add_hover(btn_rel, bg_hover="#8e44ad")
+
+
+        
     # ---------- CRUD ---------- #
 
     def load_table(self):
@@ -135,68 +158,113 @@ class App:
         self.vars["salario"].set(f.salario)
         self.vars["adiant"].set(f.adiantamento)
         self.vars["va"].set(f.va)
+        
 
     def delete(self):
-        if self.perfil != "Master":
-            return
-        
         sel = self.tree.selection()
         if not sel:
+            alert("aviso", "Selecione um funcionário para excluir.")
             return
-        fid = self.tree.item(sel)["values"][0]
-        conn = get_conn()
-        c = conn.cursor()
-        c.execute("DELETE FROM funcionarios WHERE id=%s", (fid,))
-        conn.commit()
-        conn.close()
-        self.load_table()
 
+        fid = self.tree.item(sel)["values"][0]
+        f = Funcionario.buscar_por_id(fid)
+
+        if not messagebox.askyesno(
+            "Confirmar exclusão",
+            f"Deseja realmente excluir o funcionário:\n\n{f.nome}?"
+        ):
+            alert("info", "Exclusão cancelada pelo usuário.")
+            return
+
+        try:
+            Funcionario.excluir(fid)
+            self.load_table()
+            alert("info", "Funcionário excluído com sucesso.")
+        except Exception as e:
+            alert("erro", f"Erro ao excluir funcionário:\n{e}")
+   
     def aplicar_permissoes(self):
         if self.perfil == "Financeiro":
             self.btn_save.config(state="disabled")
+
 
     # ---------- PIX ---------- #
 
     def pix(self):
         sel = self.tree.selection()
         if not sel:
+            alert("aviso", "Selecione um funcionário para gerar o PIX.")
             return
+
         fid = self.tree.item(sel)["values"][0]
         f = Funcionario.buscar_por_id(fid)
 
         win = tk.Toplevel(self.root)
-        win.title("Tipo de Pagamento")
+        win.title("Gerar PIX")
+        win.geometry("350x220")
+        win.resizable(False, False)
 
-        opt = tk.StringVar(value="sal")
+        container = tk.Frame(win, padx=20, pady=20)
+        container.pack(fill="both", expand=True)
 
-        tk.Radiobutton(win, text="Salário + VA", variable=opt, value="sal").pack(anchor="w")
-        tk.Radiobutton(win, text="Adiantamento", variable=opt, value="adiant").pack(anchor="w")
+        tk.Label(
+            container,
+            text=f"Funcionário: {f.nome}",
+            font=("Segoe UI", 10, "bold")
+        ).pack(anchor="w", pady=(0, 10))
 
-        def gerar():
-            valor = f.salario + f.va if opt.get() == "sal" else f.adiantamento
-            tipo = "SAL" if opt.get() == "sal" else "ADI"
+        # Nenhuma opção selecionada por padrão
+        tipo_pgto = tk.StringVar(value="")
+
+        tk.Label(container, text="Tipo de pagamento:").pack(anchor="w")
+
+        rb_sal = tk.Radiobutton(
+            container,
+            text="Salário + VA",
+            variable=tipo_pgto,
+            value="sal"
+    )
+        rb_sal.pack(anchor="w", pady=2)
+
+        rb_adi = tk.Radiobutton(
+            container,
+            text="Adiantamento + Vale",
+            variable=tipo_pgto,
+            value="adiant"
+        )
+        rb_adi.pack(anchor="w", pady=2)
+
+        def gerar_pix():
+            if not tipo_pgto.get():
+                alert("aviso", "Selecione o tipo de pagamento antes de gerar o PIX.")
+                return
+
+            if tipo_pgto.get() == "sal":
+                valor = f.salario + f.va
+                tipo = "SAL"
+            else:
+                valor = f.adiantamento
+                tipo = "ADI"
 
             mes = self.ent_mes_pgto.get()
             ano = self.ent_ano_pgto.get()
 
             if not mes or not ano:
-                messagebox.showerror("Erro", "Informe o mês e o ano do pagamento")
+                alert("erro", "Informe o mês e o ano do pagamento.")
                 return
 
             try:
                 mes_int = int(mes)
                 ano_int = int(ano)
             except ValueError:
-                messagebox.showerror("Erro", "Mês/Ano inválidos")
+                alert("erro", "Mês ou ano inválido.")
                 return
 
             if mes_int < 1 or mes_int > 12:
-                messagebox.showerror("Erro", "Mês inválido (1 a 12)")
+                alert("erro", "Mês deve estar entre 1 e 12.")
                 return
 
-            # data lógica para o PIX (não precisa ser dia real)
             data = f"{ano_int}{mes_int:02}01"
-
             txid = f"{tipo}{data}{f.id}"
 
             payload = gerar_payload_pix(
@@ -204,15 +272,46 @@ class App:
                 valor,
                 f.nome,
                 txid
-    )
+            )
 
-            img = qrcode.make(payload).resize((300, 300))
-            imgtk = ImageTk.PhotoImage(img)
-            qr = tk.Toplevel(self.root)
-            tk.Label(qr, image=imgtk).pack()
-            qr.image = imgtk
+            win.destroy()
+            descricao = "Salário + VA" if tipo_pgto.get() == "sal" else "Adiantamento Salarial"
+            self.mostrar_qr_code(payload,f.nome,valor,descricao)
 
-        tk.Button(win, text="Gerar QR Code", command=gerar).pack(pady=10)
+
+        tk.Button(container, text="Gerar PIX", command=gerar_pix, **BTN_VERDE).pack(pady=15)
+
+    def mostrar_qr_code(self, payload, nome, valor, descricao):
+        win = tk.Toplevel(self.root)
+        win.title("PIX Gerado")
+        win.geometry("350x450")
+        win.resizable(False, False)
+
+        container = tk.Frame(win, padx=15, pady=15)
+        container.pack(fill="both", expand=True)
+
+        # Nome do funcionário
+        tk.Label(container, text=nome,font=("Segoe UI", 12, "bold")).pack(pady=(0, 3))
+
+        # Tipo de pagamento
+        tk.Label(container, text=descricao, font=("Segoe UI", 10)).pack(pady=(0, 10))
+
+        # QR Code
+        img = qrcode.make(payload)
+        img = img.resize((300, 300))  # controle explícito
+        img_tk = ImageTk.PhotoImage(img)
+
+        qr_frame = tk.Frame(container)
+        qr_frame.pack(pady=5)
+
+        lbl_qr = tk.Label(container, image=img_tk)
+        lbl_qr.image = img_tk  # evita garbage collection
+        lbl_qr.pack()
+
+        # Valor
+        valor_fmt = f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        tk.Label(container, text=f"Valor: {valor_fmt}", font=("Segoe UI", 12, "bold")).pack(pady=(10, 5))
+        tk.Label(container, text="Escaneie o QR Code para pagamento", font=("Segoe UI", 10)).pack()
 
     # ---------- PAGAMENTO ---------- #
 
