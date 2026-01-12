@@ -63,11 +63,7 @@ class App:
         self.ent_dia_adiant = tk.Entry(periodo, width=4)
         self.ent_dia_adiant.pack(side="left", padx=5)
 
-        self.btn_salvar_datas = tk.Button(
-            periodo,
-            text="Salvar Datas",
-            command=self.salvar_datas_pgto
-        )
+        self.btn_salvar_datas = tk.Button(periodo, text="Salvar Datas", command=self.salvar_datas_pgto)
         self.btn_salvar_datas.pack(side="left", padx=15)
 
         cfg = buscar_configs()
@@ -118,10 +114,8 @@ class App:
         self.tree = ttk.Treeview(self.root, columns=cols, show="headings")
 
         for c in cols:
-            self.tree.heading(c, text=c)
+            self.tree.heading(c, text=c, command=lambda col=c: self.sort_tree(col, False))
             self.tree.column(c, width=150, anchor="center")
-        
-        self.tree.pack(fill="both", expand=True, padx=10, pady=5)
 
         btns = tk.Frame(self.root)
         btns.pack(pady=15)
@@ -153,14 +147,18 @@ class App:
         salvar_configs(dia_sal, dia_adiant)
         alert("Sucesso", "Datas de pagamento salvas com sucesso")
 
-        
+    def aplicar_permissoes(self):
+        if self.perfil != "Master":
+            self.btn_delete.config(state="disabled")
+            self.btn_edit.config(state="disabled")
+
     # ---------- CRUD ---------- #
 
     def load_table(self):
         self.tree.delete(*self.tree.get_children())
         conn = get_conn()
         c = conn.cursor()
-        c.execute("SELECT id, nome, banco, salario_liquido, va, adiantamento FROM funcionarios")
+        c.execute("SELECT id, nome, banco, salario_liquido, va, adiantamento FROM funcionarios WHERE ativo = TRUE ORDER BY nome")
         for r in c.fetchall():
             total = r[3] + r[4]
             self.tree.insert("", "end", values=(
@@ -205,29 +203,44 @@ class App:
     def delete(self):
         sel = self.tree.selection()
         if not sel:
-            alert("aviso", "Selecione um funcionário para excluir.")
+            messagebox.showwarning("Atenção", "Selecione um funcionário.")
             return
 
         fid = self.tree.item(sel)["values"][0]
         f = Funcionario.buscar_por_id(fid)
 
         if not messagebox.askyesno(
-            "Confirmar exclusão",
-            f"Deseja realmente excluir o funcionário:\n\n{f.nome}?"
+            "Confirmar",
+            f"Deseja desativar o funcionário:\n\n{f.nome}?\n\n"
+            "O histórico de pagamentos será mantido."
         ):
-            alert("info", "Exclusão cancelada pelo usuário.")
             return
 
+        Funcionario.excluir(fid)
+        self.load_table()
+
+        messagebox.showinfo(
+            "OK",
+            "Funcionário desativado com sucesso.\n"
+            "O histórico foi preservado."
+        )
+
+    def sort_tree(self, col, reverse):
+        dados = [(self.tree.set(k, col), k) for k in self.tree.get_children("")]
+
+        # tenta converter para número
         try:
-            Funcionario.excluir(fid)
-            self.load_table()
-            alert("info", "Funcionário excluído com sucesso.")
-        except Exception as e:
-            alert("erro", f"Erro ao excluir funcionário:\n{e}")
-   
-    def aplicar_permissoes(self):
-        if self.perfil == "Financeiro":
-            self.btn_save.config(state="disabled")
+            dados = [(float(v.replace("R$", "").replace(",", "").strip()), k) for v, k in dados]
+        except:
+            dados = [(v.lower(), k) for v, k in dados]
+
+        dados.sort(reverse=reverse)
+
+        for i, (_, k) in enumerate(dados):
+            self.tree.move(k, "", i)
+
+        # inverte a próxima ordenação
+        self.tree.heading(col, command=lambda: self.sort_tree(col, not reverse))
 
 
     # ---------- PIX ---------- #

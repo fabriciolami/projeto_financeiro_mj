@@ -70,3 +70,26 @@ class Funcionario:
 
         conn.commit()
         conn.close()
+
+    def listar():
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT id, nome, salario, va, adiantamento, chave_pix
+            FROM funcionarios
+            WHERE ativo = TRUE
+            ORDER BY nome
+        """)
+        rows = cur.fetchall()
+        conn.close()
+        return rows
+
+    def excluir(fid):
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE funcionarios SET ativo = FALSE WHERE id = %s",
+            (fid,)
+        )
+        conn.commit()
+        conn.close()
