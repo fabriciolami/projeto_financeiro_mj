@@ -373,41 +373,65 @@ class App:
     # ---------- PAGAMENTO ---------- #
 
     def mark_paid(self):
+        if self.perfil != "Master":
+            messagebox.showerror("Acesso negado", "Somente Master pode marcar pagamento")
+            return
+
         sel = self.tree.selection()
         if not sel:
             return
+
         fid = self.tree.item(sel)["values"][0]
         f = Funcionario.buscar_por_id(fid)
 
-        valor = f.salario + f.va
         tipo = "Salário+VA"
+        valor = f.salario + f.va
+
+        data_pagamento = datetime.now()
+        mes = data_pagamento.month
+        ano = data_pagamento.year
 
         conn = get_conn()
-        c = conn.cursor()
-        mes = int(self.ent_mes_pgto.get())
-        ano = int(self.ent_ano_pgto.get())
+        cur = conn.cursor()
 
-        data = f"{ano}{mes:02}01"
-        txid = f"SAL{data}{f.id}"
+    # -- BLOQUEIO DE DUPLICIDADE
+        cur.execute("""
+            SELECT 1
+            FROM historico_pagamentos
+            WHERE funcionario_id = %s
+            AND tipo = %s
+            AND mes = %s
+            AND ano = %s
+        """, (fid, tipo, mes, ano))
 
-        c.execute("""
+
+        if cur.fetchone():
+            messagebox.showwarning(
+                "Pagamento duplicado",
+                "Este pagamento já foi registrado neste mês."
+            )
+            conn.close()
+            return
+
+    # -- INSERIR
+        cur.execute("""
             INSERT INTO historico_pagamentos
-            (funcionario_id, data, mes, ano, tipo, valor, txid)
-            VALUES (%s,%s,%s,%s,%s,%s,%s)
+                (funcionario_id, data, tipo, valor, mes, ano)
+            VALUES (%s, %s, %s, %s, %s, %s)
         """, (
             fid,
-            datetime.now().date(),
-            str(mes),   # mantém compatível com coluna TEXT
-            str(ano),
+            data_pagamento.date(),
             tipo,
             valor,
-            txid
-))
+            mes,
+            ano
+        ))
 
         conn.commit()
         conn.close()
 
-        messagebox.showinfo("OK", "Pagamento registrado")
+        messagebox.showinfo("OK", "Pagamento registrado com sucesso")
+
 
     # ---------- RELATÓRIOS ---------- #
 
@@ -428,19 +452,21 @@ class App:
         tk.Label(frame_filtro, text="Ano").pack(side="left")
         ent_ano = tk.Entry(frame_filtro, width=8)
         ent_ano.pack(side="left", padx=5)
+        
+        hoje = datetime.now()
+        ent_mes.insert(0, str(hoje.month))
+        ent_ano.insert(0, str(hoje.year))
 
     # ---------- TABELA ----------
-        cols = ("id", "nome", "salario", "adiant", "total")
+        cols = ("pid", "nome", "tipo", "valor", "mes", "ano")
         tree = ttk.Treeview(win, columns=cols, show="headings")
 
-        for c, t in zip(
-            cols,
-            ["ID", "Funcionário", "Salário", "Adiantamento", "Total no mês"]
-        ):
-            tree.heading(c, text=t)
-            tree.column(c, anchor="center", width=200)
+        titulos = ["ID Pgto", "Funcionário", "Tipo", "Valor", "Mês", "Ano"]
 
-        tree.pack(fill="both", expand=True, padx=10, pady=10)
+        for c, t in zip(cols, titulos):
+            tree.heading(c, text=t)
+            tree.column(c, anchor="center", width=180)
+            tree.pack(fill="both", expand=True, padx=10, pady=10)
 
     # ---------- TOTALIZADORES ----------
         lbl_totais = tk.Label(win, text="", font=("Arial", 10, "bold"))
@@ -475,15 +501,16 @@ class App:
             cur = conn.cursor()
             cur.execute("""
                 SELECT
-                    f.id,
+                    h.id,
                     f.nome,
-                    COALESCE(SUM(CASE WHEN h.tipo='Salário+VA' THEN h.valor END), 0),
-                    COALESCE(SUM(CASE WHEN h.tipo='Adiantamento' THEN h.valor END), 0)
+                    h.tipo,
+                    h.valor,
+                    h.mes,
+                    h.ano
                 FROM historico_pagamentos h
                 JOIN funcionarios f ON f.id = h.funcionario_id
                 WHERE h.mes = %s
-                    AND h.ano = %s
-                GROUP BY f.id, f.nome
+                AND h.ano = %s
                 ORDER BY f.nome
             """, (mes, ano))
 
@@ -493,8 +520,8 @@ class App:
             total_sal = total_adi = total_geral = 0
 
             for r in rows:
-                salario = r[2]
-                adiant = r[3]
+                salario = float(r[2] or 0)
+                adiant = float(r[3] or 0)
                 total = salario + adiant
 
                 total_sal += salario
@@ -507,7 +534,8 @@ class App:
                     f"R$ {salario:.2f}",
                     f"R$ {adiant:.2f}",
                     f"R$ {total:.2f}"
-        ))
+            ))
+
 
                 dados_cache.append([r[0], r[1], salario, adiant, total])
 
@@ -580,10 +608,42 @@ class App:
             c.save()
             messagebox.showinfo("Sucesso", "PDF gerado com sucesso")
 
+        def excluir_pagamento():
+            if self.perfil != "Master":
+                messagebox.showerror("Permissão negada", "Apenas o Master pode excluir pagamentos.")
+                return
+
+            sel = tree.selection()
+            if not sel:
+                messagebox.showwarning("Atenção", "Selecione um pagamento")
+                return
+
+            pid = tree.item(sel)["values"][0]
+
+            confirmar = messagebox.askyesno(
+                "Confirmar exclusão",
+                "Tem certeza que deseja excluir este pagamento?\nEssa ação não pode ser desfeita."
+            )
+
+            if not confirmar:
+                return
+
+            conn = get_conn()
+            cur = conn.cursor()
+            cur.execute("DELETE FROM historico_pagamentos WHERE id = %s", (pid,))
+            conn.commit()
+            conn.close()
+
+            tree.delete(sel)
+            messagebox.showinfo("Sucesso", "Pagamento excluído com sucesso")    
+
     # ---------- BOTÕES ----------
         frame_botoes = tk.Frame(win)
         frame_botoes.pack(pady=10)
 
-        tk.Button(frame_botoes, text="Filtrar", command=filtrar).pack(side="left", padx=5)
-        tk.Button(frame_botoes, text="Exportar Excel", command=exportar_excel).pack(side="left", padx=5)
-        tk.Button(frame_botoes, text="Exportar PDF", command=exportar_pdf).pack(side="left", padx=5)
+        tk.Button(frame_botoes, text="Filtrar", bg="#3498db", command=filtrar).pack(side="left", padx=5)
+        tk.Button(frame_botoes, text="Exportar Excel", bg="#2ecc71", command=exportar_excel).pack(side="left", padx=5)
+        tk.Button(frame_botoes, text="Exportar PDF", bg="#9b59b6", command=exportar_pdf).pack(side="left", padx=5)
+        tk.Button(frame_botoes,text="Excluir Pagamento",bg="#b92717",fg="white",command=excluir_pagamento).pack(side="left", padx=5)
+
+        filtrar()
