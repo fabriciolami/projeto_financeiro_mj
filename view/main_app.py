@@ -116,6 +116,8 @@ class App:
         for c in cols:
             self.tree.heading(c, text=c, command=lambda col=c: self.sort_tree(col, False))
             self.tree.column(c, width=150, anchor="center")
+            self.tree.pack(fill="both", expand=True, padx=10, pady=5)
+
 
         btns = tk.Frame(self.root)
         btns.pack(pady=15)
