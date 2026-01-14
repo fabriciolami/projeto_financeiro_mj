@@ -6,12 +6,16 @@ from tkinter import ttk
 from PIL import ImageTk, Image
 import db
 from view.main_app import App # Importaremos a classe principal daqui
+from styles import centralizar_janela
+from styles import preparar_janela
 
 class LoginScreen:
     def __init__(self, root):
         self.root = root
-        self.root.title("Sistema Financeiro da Marmoraria Jardim")
+        self.root.title("Sistema de Pagamento")
         self.root.geometry("400x500")
+        centralizar_janela(self.root)
+        preparar_janela(self.root, 400, 500)
 
         if os.path.exists("img/logo_empresa.png"):
             img = Image.open("img/logo_empresa.png").resize((350, 180))

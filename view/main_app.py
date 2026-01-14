@@ -6,7 +6,8 @@ from datetime import datetime
 import qrcode
 from PIL import ImageTk
 import pandas as pd
-
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
 
 from db import get_conn
 from db import buscar_configs
@@ -15,6 +16,8 @@ from models import Funcionario
 from services.pix_service import gerar_payload_pix # Importando do novo serviço
 from styles import BTN_VERDE, BTN_AZUL, BTN_ROXO, BTN_PADRAO, BTN_VERMELHO
 from styles import add_hover
+from styles import centralizar_janela
+from styles import preparar_janela
 
     # ================= APP ================= #
 
@@ -22,8 +25,11 @@ class App:
     def __init__(self, root, perfil):
         self.root = root
         self.perfil = perfil
-        root.title(f"Sistema Financeiro - {perfil}")
+        root.title(f"Sistema de Pagamentos - {perfil}")
         root.geometry("1300x750")
+
+        centralizar_janela(root)
+        preparar_janela(root, 1300, 750)
 
         self.vars = {k: tk.StringVar() for k in
                      ["nome", "admissao", "banco", "pix", "salario", "adiant", "va"]}
@@ -162,7 +168,7 @@ class App:
         c = conn.cursor()
         c.execute("SELECT id, nome, banco, salario_liquido, va, adiantamento FROM funcionarios WHERE ativo = TRUE ORDER BY nome")
         for r in c.fetchall():
-            total = r[3] + r[4]
+            total = r[3] + r[4] + r[5]
             self.tree.insert("", "end", values=(
                 r[0], r[1], r[2], f"{r[3]:.2f}", f"{r[4]:.2f}", f"{r[5]:.2f}", f"{total:.2f}"
             ))
@@ -260,38 +266,43 @@ class App:
         win.title("Gerar PIX")
         win.geometry("350x220")
         win.resizable(False, False)
+        centralizar_janela(win)
 
         container = tk.Frame(win, padx=20, pady=20)
         container.pack(fill="both", expand=True)
 
-        tk.Label(
-            container,
-            text=f"Funcionário: {f.nome}",
-            font=("Segoe UI", 10, "bold")
-        ).pack(anchor="w", pady=(0, 10))
+        tk.Label(container, text=f"Funcionário: {f.nome}", font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(0, 10))
 
         # Nenhuma opção selecionada por padrão
         tipo_pgto = tk.StringVar(value="")
 
         tk.Label(container, text="Tipo de pagamento:").pack(anchor="w")
 
-        rb_sal = tk.Radiobutton(
-            container,
-            text="Salário + VA",
-            variable=tipo_pgto,
-            value="sal"
-    )
+        rb_sal = tk.Radiobutton(container, text="Salário + VA", variable=tipo_pgto, value="sal")
         rb_sal.pack(anchor="w", pady=2)
 
-        rb_adi = tk.Radiobutton(
-            container,
-            text="Adiantamento",
-            variable=tipo_pgto,
-            value="adiant"
-        )
+        rb_adi = tk.Radiobutton(container, text="Adiantamento", variable=tipo_pgto, value="adiant")
         rb_adi.pack(anchor="w", pady=2)
 
-        def gerar_pix():
+        # 🔒 BLOQUEIO POR PAGAMENTO JÁ REALIZADO
+        if self._pagamento_ja_realizado(fid, "Salário+VA"):
+            rb_sal.config(state="disabled")
+
+        if self._pagamento_ja_realizado(fid, "Adiantamento"):
+            rb_adi.config(state="disabled")
+
+        tipo_escolhido = tipo_pgto.get()
+
+        if tipo_escolhido == "sal" and self._pagamento_ja_realizado(fid, "Salário+VA"):
+            alert("aviso", "Salário + VA já foi pago neste mês.")
+            return
+
+        if tipo_escolhido == "adiant" and self._pagamento_ja_realizado(fid, "Adiantamento"):
+            alert("aviso", "Adiantamento já foi pago neste mês.")
+            return
+        
+
+        def abrir_pix():
             if not tipo_pgto.get():
                 alert("aviso", "Selecione o tipo de pagamento antes de gerar o PIX.")
                 return
@@ -336,7 +347,7 @@ class App:
             self.mostrar_qr_code(payload,f.nome,valor,descricao)
 
 
-        tk.Button(container, text="Gerar PIX", command=gerar_pix, **BTN_VERDE).pack(pady=15)
+        tk.Button(container, text="Gerar PIX", command=abrir_pix, **BTN_VERDE).pack(pady=15)
 
     def mostrar_qr_code(self, payload, nome, valor, descricao):
         win = tk.Toplevel(self.root)
@@ -379,13 +390,58 @@ class App:
 
         sel = self.tree.selection()
         if not sel:
+            messagebox.showwarning("Atenção", "Selecione um funcionário")
             return
 
         fid = self.tree.item(sel)["values"][0]
         f = Funcionario.buscar_por_id(fid)
 
-        tipo = "Salário+VA"
-        valor = f.salario + f.va
+        win = tk.Toplevel(self.root)
+        win.title("Selecionar pagamento")
+        win.geometry("300x180")
+        win.resizable(False, False)
+        win.grab_set()
+
+        var_sal = tk.BooleanVar(value=True)
+        var_adi = tk.BooleanVar(value=False)
+
+        tk.Label(win, text="O que deseja marcar como pago?").pack(pady=10)
+
+        tk.Checkbutton(win, text="Salário + VA", variable=var_sal)\
+        .pack(anchor="w", padx=20)
+
+        tk.Checkbutton(win, text="Adiantamento", variable=var_adi)\
+        .pack(anchor="w", padx=20)
+
+        def confirmar():
+            registrados = []
+
+            if var_sal.get():
+                if self._registrar_pagamento(fid, "Salário+VA", f.salario + f.va):
+                    registrados.append("Salário+VA")
+
+            if var_adi.get():
+                if self._registrar_pagamento(fid, "Adiantamento", f.adiantamento):
+                        registrados.append("Adiantamento")
+            if not registrados:
+                messagebox.showwarning("Nada feito","Nenhum pagamento foi registrado (já existente)."
+                        )
+            else:
+                messagebox.showinfo("Sucesso","Pagamentos registrados: " + ", ".join(registrados)
+                        )
+
+            win.destroy()
+
+        frame_btn = tk.Frame(win)
+        frame_btn.pack(pady=15)
+
+        tk.Button(frame_btn, text="Confirmar", width=10, command=confirmar)\
+            .pack(side="left", padx=5)
+
+        tk.Button(frame_btn, text="Cancelar", width=10, command=win.destroy)\
+            .pack(side="left", padx=5)
+
+    def _registrar_pagamento(self, fid, tipo, valor):
 
         data_pagamento = datetime.now()
         mes = data_pagamento.month
@@ -394,7 +450,7 @@ class App:
         conn = get_conn()
         cur = conn.cursor()
 
-    # -- BLOQUEIO DE DUPLICIDADE
+        # BLOQUEIO DE DUPLICIDADE
         cur.execute("""
             SELECT 1
             FROM historico_pagamentos
@@ -404,16 +460,11 @@ class App:
             AND ano = %s
         """, (fid, tipo, mes, ano))
 
-
         if cur.fetchone():
-            messagebox.showwarning(
-                "Pagamento duplicado",
-                "Este pagamento já foi registrado neste mês."
-            )
             conn.close()
-            return
+            return False  # já pago
 
-    # -- INSERIR
+        # INSERT
         cur.execute("""
             INSERT INTO historico_pagamentos
                 (funcionario_id, data, tipo, valor, mes, ano)
@@ -429,8 +480,28 @@ class App:
 
         conn.commit()
         conn.close()
+        return True
+   
+    def _pagamento_ja_realizado(self, fid, tipo):
+        agora = datetime.now()
+        mes = agora.month
+        ano = agora.year
 
-        messagebox.showinfo("OK", "Pagamento registrado com sucesso")
+        conn = get_conn()
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT 1
+            FROM historico_pagamentos
+            WHERE funcionario_id = %s
+            AND tipo = %s
+            AND mes = %s
+            AND ano = %s
+        """, (fid, tipo, mes, ano))
+
+        existe = cur.fetchone() is not None
+        conn.close()
+        return existe
 
 
     # ---------- RELATÓRIOS ---------- #
@@ -438,7 +509,8 @@ class App:
     def reports(self):
         win = tk.Toplevel(self.root)
         win.title("Relatório Mensal")
-        win.geometry("1200x620")
+        win.geometry("1100x620")
+        centralizar_janela(win)
 
     # ---------- FILTROS ----------
         frame_filtro = tk.Frame(win)
@@ -458,10 +530,10 @@ class App:
         ent_ano.insert(0, str(hoje.year))
 
     # ---------- TABELA ----------
-        cols = ("pid", "nome", "tipo", "valor", "mes", "ano")
+        cols = ("pid", "nome", "salario", "adiant", "total_mes", "ano")
         tree = ttk.Treeview(win, columns=cols, show="headings")
 
-        titulos = ["ID Pgto", "Funcionário", "Tipo", "Valor", "Mês", "Ano"]
+        titulos = ["ID Pgto", "Funcionário", "Salário", "Adiantamento", "Total Mês", "Ano"]
 
         for c, t in zip(cols, titulos):
             tree.heading(c, text=t)
@@ -520,9 +592,18 @@ class App:
             total_sal = total_adi = total_geral = 0
 
             for r in rows:
-                salario = float(r[2] or 0)
-                adiant = float(r[3] or 0)
+                tipo = r[2]
+                valor = float(r[3] or 0)
+
+                salario = adiant = 0.0
+
+                if tipo == "Salário" or tipo == "Salário+VA":
+                    salario = valor
+                elif tipo == "Adiantamento":
+                    adiant = valor
+
                 total = salario + adiant
+
 
                 total_sal += salario
                 total_adi += adiant
@@ -533,7 +614,8 @@ class App:
                     r[1],
                     f"R$ {salario:.2f}",
                     f"R$ {adiant:.2f}",
-                    f"R$ {total:.2f}"
+                    f"R$ {total:.2f}",
+                    r[5]
             ))
 
 
@@ -582,9 +664,6 @@ class App:
 
             if not caminho:
                 return
-
-            from reportlab.lib.pagesizes import A4
-            from reportlab.pdfgen import canvas
 
             c = canvas.Canvas(caminho, pagesize=A4)
             y = 800
@@ -641,9 +720,9 @@ class App:
         frame_botoes = tk.Frame(win)
         frame_botoes.pack(pady=10)
 
-        tk.Button(frame_botoes, text="Filtrar", bg="#3498db", command=filtrar).pack(side="left", padx=5)
-        tk.Button(frame_botoes, text="Exportar Excel", bg="#2ecc71", command=exportar_excel).pack(side="left", padx=5)
-        tk.Button(frame_botoes, text="Exportar PDF", bg="#9b59b6", command=exportar_pdf).pack(side="left", padx=5)
-        tk.Button(frame_botoes,text="Excluir Pagamento",bg="#b92717",fg="white",command=excluir_pagamento).pack(side="left", padx=5)
+        tk.Button(frame_botoes, text="Filtrar", **BTN_PADRAO, command=filtrar).pack(side="left", padx=5)
+        tk.Button(frame_botoes, text="Exportar Excel", **BTN_VERDE, command=exportar_excel).pack(side="left", padx=5)
+        tk.Button(frame_botoes, text="Exportar PDF", **BTN_ROXO, command=exportar_pdf).pack(side="left", padx=5)
+        tk.Button(frame_botoes,text="Excluir Pagamento",**BTN_VERMELHO,command=excluir_pagamento).pack(side="left", padx=5)
 
         filtrar()

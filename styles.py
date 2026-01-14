@@ -62,3 +62,23 @@ def add_hover(widget, bg_hover, fg_hover=None):
 
     widget.bind("<Enter>", on_enter)
     widget.bind("<Leave>", on_leave)
+
+def centralizar_janela(janela):
+    janela.update_idletasks()
+
+    largura = janela.winfo_width()
+    altura = janela.winfo_height()
+
+    tela_largura = janela.winfo_screenwidth()
+    tela_altura = janela.winfo_screenheight()
+
+    x = (tela_largura // 2) - (largura // 2)
+    y = (tela_altura // 2) - (altura // 2)
+
+    janela.geometry(f"{largura}x{altura}+{x}+{y}")
+
+def preparar_janela(janela, largura, altura):
+    janela.geometry(f"{largura}x{altura}")
+    janela.resizable(False, False)
+    centralizar_janela(janela)
+    janela.focus_force()
