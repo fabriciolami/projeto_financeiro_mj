@@ -1,5 +1,6 @@
 # styles.py
 import tkinter as tk
+from tkinter import font
 
 BTN_VERDE = {
     "bg": "#2ecc71",
@@ -82,3 +83,34 @@ def preparar_janela(janela, largura, altura):
     janela.resizable(False, False)
     centralizar_janela(janela)
     janela.focus_force()
+
+def entry_rounded(master, show=None):
+    container = tk.Frame(master, bg="#f2f4f8")
+
+    canvas = tk.Canvas(container,
+        width=280,
+        height=38,
+        bg="#f2f4f8",
+        highlightthickness=0
+    )
+    canvas.pack()
+
+    # desenha fundo
+    bg_shape = canvas.create_rectangle(
+        2, 2, 278, 36, 
+        outline="#ccc", 
+        width=2, 
+        fill="white")
+
+    entry = tk.Entry(
+        container,bd=0,
+        bg="white",
+        font=("Segoe UI", 10),
+        show=show)
+    entry.place(x=14, y=10, width=235, height=18)
+
+    # foco azul
+    entry.bind("<FocusIn>", lambda e: canvas.itemconfig(bg_shape, outline="#1976d2"))
+    entry.bind("<FocusOut>", lambda e: canvas.itemconfig(bg_shape, outline="#ccc"))
+    
+    return container, entry

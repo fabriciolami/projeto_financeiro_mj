@@ -17,19 +17,17 @@ from services.pix_service import gerar_payload_pix # Importando do novo serviço
 from styles import BTN_VERDE, BTN_AZUL, BTN_ROXO, BTN_PADRAO, BTN_VERMELHO
 from styles import add_hover
 from styles import centralizar_janela
-from styles import preparar_janela
 
     # ================= APP ================= #
 
 class App:
-    def __init__(self, root, perfil):
+    def __init__(self, root, usuario, perfil):
         self.root = root
+        self.usuario = usuario
         self.perfil = perfil
         root.title(f"Sistema de Pagamentos - {perfil}")
         root.geometry("1300x750")
-
         centralizar_janela(root)
-        preparar_janela(root, 1300, 750)
 
         self.vars = {k: tk.StringVar() for k in
                      ["nome", "admissao", "banco", "pix", "salario", "adiant", "va"]}
@@ -47,7 +45,7 @@ class App:
         periodo = tk.LabelFrame(self.root, text="Período de Pagamento", padx=10, pady=5)
         periodo.pack(fill="x", padx=10, pady=5)
 
-        tk.Label(periodo, text="Mês").pack(side="left")
+        tk.Label(periodo, text="Mês",).pack(side="left")
         self.ent_mes_pgto = tk.Entry(periodo, width=5)
         self.ent_mes_pgto.pack(side="left", padx=5)
 
@@ -71,6 +69,16 @@ class App:
 
         self.btn_salvar_datas = tk.Button(periodo, text="Salvar Datas", command=self.salvar_datas_pgto)
         self.btn_salvar_datas.pack(side="left", padx=15)
+
+        btn_sair = tk.Button(periodo, text="Sair", font=("Segoe UI", 10), **BTN_PADRAO, command=self.logout)
+        btn_sair.pack(side="right", padx=10)
+        add_hover(btn_sair, bg_hover="#a7a7a7")
+
+        lbl_usuario = tk.Label(periodo,text=f"Usuário: {self.usuario} ({self.perfil})",font=("Segoe UI", 10, "bold"),fg="#333")
+        lbl_usuario.pack(side="right", padx=10)
+        cor = "#2e7d32" if self.perfil == "MASTER" else "#1565c0"
+        lbl_usuario.config(fg=cor)
+
 
         cfg = buscar_configs()
         if cfg:
@@ -104,15 +112,15 @@ class App:
         actions_form = tk.Frame(form)
         actions_form.grid(row=0, column=14, columnspan=6, padx=(30, 0), sticky="e")
 
-        self.btn_save = tk.Button(actions_form, text="Salvar", command=self.save, **BTN_VERDE)
+        self.btn_save = tk.Button(actions_form, text="Salvar", font=("Segoe UI", 10), command=self.save, **BTN_VERDE)
         self.btn_save.pack(side="left", padx=5)
         add_hover(self.btn_save, bg_hover="#1d8d4c")
 
-        self.btn_edit = tk.Button(actions_form, text="Editar", command=self.edit, **BTN_PADRAO)
+        self.btn_edit = tk.Button(actions_form, text="Editar", font=("Segoe UI", 10), command=self.edit, **BTN_PADRAO)
         self.btn_edit.pack(side="left", padx=5)
         add_hover(self.btn_edit, bg_hover="#a7a7a7")
 
-        self.btn_delete = tk.Button(actions_form, text="Excluir", command=self.delete, **BTN_VERMELHO)
+        self.btn_delete = tk.Button(actions_form, text="Excluir", font=("Segoe UI", 10), command=self.delete, **BTN_VERMELHO)
         self.btn_delete.pack(side="left", padx=5)
         add_hover(self.btn_delete, bg_hover="#c43020")
 
@@ -128,17 +136,27 @@ class App:
         btns = tk.Frame(self.root)
         btns.pack(pady=15)
 
-        btn_pix = tk.Button(btns, text="Gerar PIX", command=self.pix, width=10, **BTN_VERDE)
+        btn_pix = tk.Button(btns, text="Gerar PIX", font=("Segoe UI", 10), command=self.pix, width=10, **BTN_VERDE)
         btn_pix.pack(side="left", padx=10)
         add_hover(btn_pix, bg_hover="#27ae60")
 
-        btn_pago = tk.Button(btns, text="Marcar Pago", command=self.mark_paid, **BTN_AZUL)
+        btn_pago = tk.Button(btns, text="Marcar Pago", font=("Segoe UI", 10), command=self.mark_paid, **BTN_AZUL)
         btn_pago.pack(side="left", padx=10)
         add_hover(btn_pago, bg_hover="#2980b9")
 
-        btn_rel = tk.Button(btns, text="Relatórios", command=self.reports, **BTN_ROXO)
+        btn_rel = tk.Button(btns, text="Relatórios", font=("Segoe UI", 10), command=self.reports, **BTN_ROXO)
         btn_rel.pack(side="left", padx=10)
         add_hover(btn_rel, bg_hover="#8e44ad")
+
+    def logout(self):
+        if messagebox.askyesno("Sair", "Deseja realmente sair do sistema?"):
+            for widget in self.root.winfo_children():
+                widget.destroy()
+
+        # volta para tela de login
+        from view.login_screen import LoginScreen
+        LoginScreen(self.root)
+
 
     def salvar_datas_pgto(self):
         try:
@@ -509,7 +527,7 @@ class App:
     def reports(self):
         win = tk.Toplevel(self.root)
         win.title("Relatório Mensal")
-        win.geometry("1100x620")
+        win.geometry("1300x750")
         centralizar_janela(win)
 
     # ---------- FILTROS ----------
@@ -716,13 +734,24 @@ class App:
             tree.delete(sel)
             messagebox.showinfo("Sucesso", "Pagamento excluído com sucesso")    
 
-    # ---------- BOTÕES ----------
+    # ---------- BOTÕES RELATÓRIO ----------
         frame_botoes = tk.Frame(win)
         frame_botoes.pack(pady=10)
 
-        tk.Button(frame_botoes, text="Filtrar", **BTN_PADRAO, command=filtrar).pack(side="left", padx=5)
-        tk.Button(frame_botoes, text="Exportar Excel", **BTN_VERDE, command=exportar_excel).pack(side="left", padx=5)
-        tk.Button(frame_botoes, text="Exportar PDF", **BTN_ROXO, command=exportar_pdf).pack(side="left", padx=5)
-        tk.Button(frame_botoes,text="Excluir Pagamento",**BTN_VERMELHO,command=excluir_pagamento).pack(side="left", padx=5)
+        btn_filtrar = tk.Button(frame_botoes, text="Filtrar", font=("Segoe UI", 10), **BTN_PADRAO, command=filtrar)
+        btn_filtrar.pack(side="left", padx=5)
+        add_hover(btn_filtrar, bg_hover="#a7a7a7")
+
+        btn_export_excel = tk.Button(frame_botoes, text="Exportar Excel", font=("Segoe UI", 10), **BTN_VERDE, command=exportar_excel)
+        btn_export_excel.pack(side="left", padx=5)
+        add_hover(btn_export_excel, bg_hover="#1d8d4c")
+
+        btn_export_pdf = tk.Button(frame_botoes, text="Exportar PDF", font=("Segoe UI", 10), **BTN_ROXO, command=exportar_pdf)
+        btn_export_pdf.pack(side="left", padx=5)
+        add_hover(btn_export_pdf, bg_hover="#8e44ad")
+
+        btn_excluir_pagamento = tk.Button(frame_botoes, text="Excluir Pagamento", font=("Segoe UI", 10), **BTN_VERMELHO, command=excluir_pagamento)
+        btn_excluir_pagamento.pack(side="left", padx=5)
+        add_hover(btn_excluir_pagamento, bg_hover="#c43020")  
 
         filtrar()
