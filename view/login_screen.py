@@ -3,15 +3,15 @@ import os
 import tkinter as tk
 from tkinter import messagebox
 from PIL import ImageTk, Image
-from view.main_app import App
 import db
 from styles import centralizar_janela
 from styles import preparar_janela
 from styles import entry_rounded
 
 class LoginScreen:
-    def __init__(self, root):
+    def __init__(self, root, callback_sucesso):
         self.root = root
+        self.callback_sucesso = callback_sucesso
         self.root.title("Sistema de Pagamento")
         self.root.geometry("360x500")
         self.root.resizable(False, False)
@@ -101,6 +101,6 @@ class LoginScreen:
                 widget.destroy()
 
         # abre o sistema principal
-            App(self.root, usuario=res[0], perfil=res[1])
+            self.callback_sucesso(res[0], res[1])
         else:
             messagebox.showerror("Erro", "Login ou senha incorretos")

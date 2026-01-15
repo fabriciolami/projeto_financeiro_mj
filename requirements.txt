@@ -1,0 +1,11 @@
+dotenv==0.9.9
+pandas==2.3.3
+pillow==12.1.0
+postgrest==2.27.2
+psycopg2==2.9.11
+qrcode==8.2
+reportlab==4.4.9
+supabase==2.27.2
+supabase-auth==2.27.2
+supabase-functions==2.27.2
+
