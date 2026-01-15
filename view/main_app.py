@@ -8,7 +8,6 @@ from PIL import ImageTk
 import pandas as pd
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
-
 from db import get_conn
 from db import buscar_configs
 from db import salvar_configs
@@ -21,6 +20,7 @@ from decimal import Decimal
 from utils.money import format_money
 from repositories.payments_repository import PaymentsRepository
 from services.financial_service import FinancialService
+from utils.env import carregar_env
 
 
     # ================= APP ================= #
@@ -30,6 +30,11 @@ class App:
         self.root = root
         self.usuario = usuario
         self.perfil = perfil
+
+        hoje = datetime.now()
+        self.mes_atual = hoje.month
+        self.ano_atual = hoje.year
+        
         root.title(f"Sistema de Pagamentos - {perfil}")
         root.geometry("1300x750")
         centralizar_janela(root)
@@ -44,7 +49,7 @@ class App:
         self.load_table()
         self.aplicar_permissoes()
         self.atualizar_totais()
-
+        carregar_env()
 
     # ---------- UI ---------- #
 
@@ -61,12 +66,14 @@ class App:
         self.ent_ano_pgto = tk.Entry(periodo, width=8)
         self.ent_ano_pgto.pack(side="left", padx=5)
 
-        # valor padrão = mês atual
-        hoje = datetime.now()
-        self.ent_mes_pgto.insert(0, str(hoje.month))
-        self.ent_ano_pgto.insert(0, str(hoje.year))
+        self.ent_mes_pgto.insert(0, str(self.mes_atual))
+        self.ent_ano_pgto.insert(0, str(self.ano_atual))
 
-        # ---- CONFIGURAÇÃO DE DIAS DE PAGAMENTO ----
+        btn_filtrar = tk.Button(periodo, text="Filtrar", cursor="hand2", command=self.filtrar_periodo)
+        btn_filtrar.pack(side="left", padx=15)
+        add_hover(btn_filtrar, bg_hover="#a7a7a7")
+
+         # ---- DIAS DE PAGAMENTO ----
         tk.Label(periodo, text="Dia Salário").pack(side="left", padx=(15, 2))
         self.ent_dia_sal = tk.Entry(periodo, width=4)
         self.ent_dia_sal.pack(side="left", padx=5)
@@ -77,6 +84,9 @@ class App:
 
         self.btn_salvar_datas = tk.Button(periodo, text="Salvar Datas", command=self.salvar_datas_pgto)
         self.btn_salvar_datas.pack(side="left", padx=15)
+        add_hover(self.btn_salvar_datas, bg_hover="#a7a7a7")
+
+        # ---------- CABEÇALHO COM USUÁRIO E SAIR ----------
 
         btn_sair = tk.Button(periodo, text="Sair", font=("Segoe UI", 10), **BTN_PADRAO, command=self.logout)
         btn_sair.pack(side="right", padx=10)
@@ -86,7 +96,8 @@ class App:
         lbl_usuario.pack(side="right", padx=10)
         cor = "#2e7d32" if self.perfil == "MASTER" else "#1565c0"
         lbl_usuario.config(fg=cor)
-
+        lbl_usuario.pack(side="right", padx=10)
+    
 
         cfg = buscar_configs()
         if cfg:
@@ -181,6 +192,35 @@ class App:
             bg="#f2f2f2"
         ).pack(side="left", padx=40)
 
+    def filtrar_periodo(self):
+        mes_txt = self.ent_mes_pgto.get().strip()
+        ano_txt = self.ent_ano_pgto.get().strip()
+
+        if not mes_txt or not ano_txt:
+            messagebox.showwarning("Atenção", "Informe mês e ano")
+            return
+
+        try:
+            mes = int(mes_txt)
+            ano = int(ano_txt)
+        except ValueError:
+            messagebox.showerror("Erro", "Mês e ano devem ser números")
+            return
+
+        if mes < 1 or mes > 12:
+            messagebox.showerror("Erro", "Mês inválido (1 a 12)")
+            return
+
+    
+        # recarrega a tabela principal
+        self.load_table()
+
+        messagebox.showinfo(
+            "Período aplicado",
+            f"Período definido: {mes:02}/{ano}"
+        )
+
+
     def atualizar_totais(self):
         registros = self._extrair_dados_treeview()
 
@@ -214,9 +254,8 @@ class App:
             for widget in self.root.winfo_children():
                 widget.destroy()
 
-        # volta para tela de login
-        from view.login_screen import LoginScreen
-        LoginScreen(self.root)
+            # delega para quem controla o fluxo
+            self.root.event_generate("<<Logout>>")
 
 
     def salvar_datas_pgto(self):
@@ -252,8 +291,9 @@ class App:
                 r[0], r[1], r[2], f"{r[3]:.2f}", f"{r[4]:.2f}", f"{r[5]:.2f}", f"{total:.2f}"
             ))
         conn.close()
-
         self.atualizar_totais()
+
+
 
     def save(self):
         f = self.func_edit or Funcionario()
@@ -435,7 +475,8 @@ class App:
         win.title("PIX Gerado")
         win.geometry("350x450")
         win.resizable(False, False)
-
+        centralizar_janela(win)
+        
         container = tk.Frame(win, padx=15, pady=15)
         container.pack(fill="both", expand=True)
 
