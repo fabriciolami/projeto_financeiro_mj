@@ -17,6 +17,11 @@ from services.pix_service import gerar_payload_pix # Importando do novo serviço
 from styles import BTN_VERDE, BTN_AZUL, BTN_ROXO, BTN_PADRAO, BTN_VERMELHO
 from styles import add_hover
 from styles import centralizar_janela
+from decimal import Decimal
+from utils.money import format_money
+from repositories.payments_repository import PaymentsRepository
+from services.financial_service import FinancialService
+
 
     # ================= APP ================= #
 
@@ -34,9 +39,12 @@ class App:
 
         self.func_edit = None
 
+        self.payments_repo = PaymentsRepository()
         self.build()
         self.load_table()
         self.aplicar_permissoes()
+        self.atualizar_totais()
+
 
     # ---------- UI ---------- #
 
@@ -132,7 +140,7 @@ class App:
             self.tree.column(c, width=150, anchor="center")
             self.tree.pack(fill="both", expand=True, padx=10, pady=5)
 
-
+        # ---------- BOTÕES PRINCIPAIS ----------
         btns = tk.Frame(self.root)
         btns.pack(pady=15)
 
@@ -147,6 +155,59 @@ class App:
         btn_rel = tk.Button(btns, text="Relatórios", font=("Segoe UI", 10), command=self.reports, **BTN_ROXO)
         btn_rel.pack(side="left", padx=10)
         add_hover(btn_rel, bg_hover="#8e44ad")
+
+        # ---------- TOTALIZADORES TELA PRINCIPAL ----------
+        self.frame_totais = tk.Frame(self.root, bg="#f2f2f2", height=45)
+        self.frame_totais.pack(side="bottom", fill="x")
+        self.frame_totais.pack_propagate(False)
+
+        self.total_salario_va_var = tk.StringVar(
+        value="Total Salário + VA: R$ 0,00"
+)
+        self.total_adiantamento_var = tk.StringVar(
+        value="Total Adiantamento: R$ 0,00"
+)
+        tk.Label(
+            self.frame_totais,
+            textvariable=self.total_salario_va_var,
+            font=("Segoe UI", 10),
+            bg="#f2f2f2"
+        ).pack(side="left", padx=20)
+
+        tk.Label(
+            self.frame_totais,
+            textvariable=self.total_adiantamento_var,
+            font=("Segoe UI", 10),
+            bg="#f2f2f2"
+        ).pack(side="left", padx=40)
+
+    def atualizar_totais(self):
+        registros = self._extrair_dados_treeview()
+
+        totais = FinancialService.calcular_totais(registros)
+
+        self.total_salario_va_var.set(
+            f"Total Salário + VA: R$ {totais['total_salario_va']:,.2f}"
+            .replace(",", "X").replace(".", ",").replace("X", ".")
+        )
+
+        self.total_adiantamento_var.set(
+            f"Total Adiantamento: R$ {totais['total_adiantamento']:,.2f}"
+            .replace(",", "X").replace(".", ",").replace("X", ".")
+        )
+
+            
+    def _extrair_dados_treeview(self):
+        dados = []
+        for item in self.tree.get_children():
+            v = self.tree.item(item, "values")
+            dados.append({
+                "salario": v[3],
+                "va": v[4],
+                "adiantamento": v[5]
+            })
+        return dados
+
 
     def logout(self):
         if messagebox.askyesno("Sair", "Deseja realmente sair do sistema?"):
@@ -191,6 +252,8 @@ class App:
                 r[0], r[1], r[2], f"{r[3]:.2f}", f"{r[4]:.2f}", f"{r[5]:.2f}", f"{total:.2f}"
             ))
         conn.close()
+
+        self.atualizar_totais()
 
     def save(self):
         f = self.func_edit or Funcionario()
@@ -419,6 +482,7 @@ class App:
         win.geometry("300x180")
         win.resizable(False, False)
         win.grab_set()
+        centralizar_janela(win)
 
         var_sal = tk.BooleanVar(value=True)
         var_adi = tk.BooleanVar(value=False)
@@ -530,6 +594,11 @@ class App:
         win.geometry("1300x750")
         centralizar_janela(win)
 
+        win.transient(self.root)   # 🔗 Relatório é filho da principal
+        win.grab_set()             # 🔒 Bloqueia interação fora
+        win.focus_force()          # 🎯 Foco imediato
+
+
     # ---------- FILTROS ----------
         frame_filtro = tk.Frame(win)
         frame_filtro.pack(fill="x", padx=10, pady=5)
@@ -607,15 +676,16 @@ class App:
             rows = cur.fetchall()
             conn.close()
 
-            total_sal = total_adi = total_geral = 0
+            total_sal = total_adi = total_geral = Decimal("0.00")
 
             for r in rows:
                 tipo = r[2]
-                valor = float(r[3] or 0)
+                valor = r[3] if r[3] is not None else Decimal("0.00")
 
-                salario = adiant = 0.0
+                salario = Decimal("0.00")
+                adiant = Decimal("0.00")
 
-                if tipo == "Salário" or tipo == "Salário+VA":
+                if tipo in ("Salário", "Salário+VA"):
                     salario = valor
                 elif tipo == "Adiantamento":
                     adiant = valor
@@ -630,14 +700,13 @@ class App:
                 tree.insert("", "end", values=(
                     r[0],
                     r[1],
-                    f"R$ {salario:.2f}",
-                    f"R$ {adiant:.2f}",
-                    f"R$ {total:.2f}",
+                    format_money(salario),
+                    format_money(adiant),
+                    format_money(total),
                     r[5]
-            ))
+        ))
 
-
-                dados_cache.append([r[0], r[1], salario, adiant, total])
+            dados_cache.append([r[0], r[1], salario, adiant, total])
 
             lbl_totais.config(
                 text=(
@@ -704,7 +773,8 @@ class App:
 
             c.save()
             messagebox.showinfo("Sucesso", "PDF gerado com sucesso")
-
+        
+    # ---------- EXCLUIR PAGAMENTO ----------
         def excluir_pagamento():
             if self.perfil != "Master":
                 messagebox.showerror("Permissão negada", "Apenas o Master pode excluir pagamentos.")
@@ -732,7 +802,11 @@ class App:
             conn.close()
 
             tree.delete(sel)
-            messagebox.showinfo("Sucesso", "Pagamento excluído com sucesso")    
+            messagebox.showinfo("Sucesso", "Pagamento excluído com sucesso")  
+
+            win.lift()
+            win.focus_force()
+   
 
     # ---------- BOTÕES RELATÓRIO ----------
         frame_botoes = tk.Frame(win)
