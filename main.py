@@ -1,7 +1,11 @@
 # main.py
+from utils.env import carregar_env
+carregar_env()
+
 import tkinter as tk
 from tkinter import messagebox
 import logging
+
 from view.login_screen import LoginScreen
 from view.main_app import App
 

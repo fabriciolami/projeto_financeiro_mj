@@ -21,6 +21,8 @@ from utils.money import format_money
 from repositories.payments_repository import PaymentsRepository
 from services.financial_service import FinancialService
 from utils.env import carregar_env
+from reportlab.lib.units import cm
+from reportlab.lib import colors
 
 
     # ================= APP ================= #
@@ -672,12 +674,12 @@ class App:
         lbl_totais = tk.Label(win, text="", font=("Arial", 10, "bold"))
         lbl_totais.pack(pady=5)
 
-        dados_cache = []
+        self.dados_cache = []
 
     # ---------- FILTRAR ----------
         def filtrar():
             tree.delete(*tree.get_children())
-            dados_cache.clear()
+            self.dados_cache.clear()
 
             mes_txt = ent_mes.get().strip()
             ano_txt = ent_ano.get().strip()
@@ -747,7 +749,7 @@ class App:
                     r[5]
         ))
 
-            dados_cache.append([r[0], r[1], salario, adiant, total])
+                self.dados_cache.append([r[0], r[1], salario, adiant, total])
 
             lbl_totais.config(
                 text=(
@@ -760,7 +762,7 @@ class App:
 
     # ---------- EXPORTAR EXCEL ----------
         def exportar_excel():
-            if not dados_cache:
+            if not self.dados_cache:
                 messagebox.showwarning("Atenção", "Nenhum dado para exportar")
                 return
 
@@ -773,7 +775,7 @@ class App:
                 return
 
             df = pd.DataFrame(
-                dados_cache,
+                self.dados_cache,
                 columns=["ID", "Funcionário", "Salário", "Adiantamento", "Total"]
             )
             df.to_excel(caminho, index=False)
@@ -781,39 +783,131 @@ class App:
 
     # ---------- EXPORTAR PDF ----------
         def exportar_pdf():
-            if not dados_cache:
+            if not self.dados_cache:
                 messagebox.showwarning("Atenção", "Nenhum dado para exportar")
                 return
 
             caminho = filedialog.asksaveasfilename(
                 defaultextension=".pdf",
-                filetypes=[("PDF", "*.pdf")]
+                filetypes=[("PDF", "*.pdf")],
+                initialfile="relatorio_pagamentos.pdf"
             )
 
             if not caminho:
                 return
 
-            c = canvas.Canvas(caminho, pagesize=A4)
-            y = 800
+            # Página em paisagem
+            c = canvas.Canvas(caminho, pagesize=landscape(A4))
+            largura, altura = landscape(A4)
 
-            c.setFont("Helvetica-Bold", 12)
-            c.drawString(40, y, "Relatório Mensal de Pagamentos")
-            y -= 30
+            mes = ent_mes.get().zfill(2)
+            ano = ent_ano.get()
+            data_geracao = datetime.now().strftime("%d/%m/%Y %H:%M")
 
-            c.setFont("Helvetica", 9)
-            for d in dados_cache:
+            logo_path = resource_path("img/logo_empresa.png")
+
+            def cabecalho():
+                # Logo
+                if os.path.exists(logo_path):
+                    c.drawImage(
+                        logo_path,
+                        2 * cm,
+                        altura - 3.2 * cm,
+                        width=4 * cm,
+                        preserveAspectRatio=True,
+                        mask="auto"
+                    )
+
+                # Título
+                c.setFont("Helvetica-Bold", 16)
+                c.drawCentredString(
+                    largura / 2,
+                    altura - 2.2 * cm,
+                    "RELATÓRIO MENSAL DE PAGAMENTOS"
+                )
+
+                c.setFont("Helvetica", 11)
+                c.drawCentredString(
+                    largura / 2,
+                    altura - 3.0 * cm,
+                    f"Período: {mes}/{ano}"
+                )
+
+                # Linha
+                c.setStrokeColor(colors.grey)
+                c.line(2 * cm, altura - 3.5 * cm, largura - 2 * cm, altura - 3.5 * cm)
+
+                # Cabeçalho da tabela
+                c.setFont("Helvetica-Bold", 10)
+                y = altura - 4.3 * cm
+
+                c.drawString(2 * cm, y, "Funcionário")
+                c.drawRightString(16 * cm, y, "Salário")
+                c.drawRightString(21 * cm, y, "Adiantamento")
+                c.drawRightString(26 * cm, y, "Total")
+
+                c.line(2 * cm, y - 4, largura - 2 * cm, y - 4)
+
+                return y - 18
+
+            def rodape():
+                c.setFont("Helvetica", 8)
+                c.setFillColor(colors.grey)
                 c.drawString(
-                    40, y,
-                    f"{d[1]} | Salário: R$ {d[2]:.2f} | "
-                    f"Adiant.: R$ {d[3]:.2f} | Total: R$ {d[4]:.2f}"
-            )
-                y -= 15
-                if y < 40:
+                    2 * cm,
+                    1.5 * cm,
+                    f"Gerado em: {data_geracao}"
+                )
+                c.drawRightString(
+                    largura - 2 * cm,
+                    1.5 * cm,
+                    "Sistema de Pagamentos"
+                )
+                c.setFillColor(colors.black)
+
+            y = cabecalho()
+            rodape()
+
+            total_sal = total_adi = total_geral = 0
+            c.setFont("Helvetica", 10)
+
+            for d in self.dados_cache:
+                if y < 2.5 * cm:
                     c.showPage()
-                    y = 800
+                    y = cabecalho()
+                    rodape()
+                    c.setFont("Helvetica", 10)
+
+                nome = d[1]
+                salario = float(d[2])
+                adiant = float(d[3])
+                total = float(d[4])
+
+                c.drawString(2 * cm, y, nome[:50])
+                c.drawRightString(16 * cm, y, f"R$ {salario:,.2f}")
+                c.drawRightString(21 * cm, y, f"R$ {adiant:,.2f}")
+                c.drawRightString(26 * cm, y, f"R$ {total:,.2f}")
+
+                total_sal += salario
+                total_adi += adiant
+                total_geral += total
+
+                y -= 16
+
+            # Totais
+            y -= 10
+            c.line(2 * cm, y, largura - 2 * cm, y)
+            y -= 18
+
+            c.setFont("Helvetica-Bold", 11)
+            c.drawString(2 * cm, y, "TOTAIS DO MÊS")
+            c.drawRightString(16 * cm, y, f"R$ {total_sal:,.2f}")
+            c.drawRightString(21 * cm, y, f"R$ {total_adi:,.2f}")
+            c.drawRightString(26 * cm, y, f"R$ {total_geral:,.2f}")
 
             c.save()
             messagebox.showinfo("Sucesso", "PDF gerado com sucesso")
+
         
     # ---------- EXCLUIR PAGAMENTO ----------
         def excluir_pagamento():

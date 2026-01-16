@@ -7,6 +7,7 @@ import db
 from styles import centralizar_janela
 from styles import preparar_janela
 from styles import entry_rounded
+from utils.paths import resource_path
 
 class LoginScreen:
     def __init__(self, root, callback_sucesso):
@@ -22,8 +23,8 @@ class LoginScreen:
 
     def build(self):
         # ---------- LOGO ----------
-        if os.path.exists("img/logo_empresa.png"):
-            img = Image.open("img/logo_empresa.png").resize((350, 180))
+        if os.path.exists(resource_path("img/logo_empresa.png")):
+            img = Image.open(resource_path("img/logo_empresa.png")).resize((350, 180))
             self.logo = ImageTk.PhotoImage(img)
             tk.Label(self.root,image=self.logo).pack(pady=(30, 20))
 
@@ -40,8 +41,8 @@ class LoginScreen:
         frame_pass, self.ent_pass = entry_rounded(self.root, show="*")
         frame_pass.pack(padx=60, pady=(0, 10))
 
-        icon_eye = ImageTk.PhotoImage(Image.open("img/icon_eye.png").resize((18, 18)))
-        icon_eye_off = ImageTk.PhotoImage(Image.open("img/icon_eye_off.png").resize((18, 18)))
+        icon_eye = ImageTk.PhotoImage(Image.open(resource_path("img/icon_eye.png")).resize((18, 18)))
+        icon_eye_off = ImageTk.PhotoImage(Image.open(resource_path("img/icon_eye_off.png")).resize((18, 18)))
 
         mostrar = False
 
@@ -51,15 +52,7 @@ class LoginScreen:
             self.ent_pass.config(show="" if mostrar else "*")
             btn_eye.config(image=icon_eye_off if mostrar else icon_eye)
         
-        btn_eye = tk.Button(
-            frame_pass,
-            image=icon_eye,
-            bd=0,
-            bg="white",
-            activebackground="white",
-            cursor="hand2",
-            command=toggle_senha
-        )
+        btn_eye = tk.Button(frame_pass,image=icon_eye,bd=0,bg="white",activebackground="white",cursor="hand2",command=toggle_senha)
         btn_eye.image = icon_eye  # mantém referência
         btn_eye.place(x=250, y=6)
 
