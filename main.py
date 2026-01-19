@@ -1,5 +1,6 @@
 # main.py
 from utils.env import carregar_env
+from utils.updater import verificar_atualizacao
 carregar_env()
 
 import tkinter as tk
@@ -8,6 +9,10 @@ import logging
 
 from view.login_screen import LoginScreen
 from view.main_app import App
+from version import APP_VERSION
+import subprocess
+import sys
+
 
 def iniciar_sistema():
     def setup_logging():
@@ -15,6 +20,16 @@ def iniciar_sistema():
             level=logging.INFO,
             format='%(asctime)s - %(levelname)s - %(message)s'
         )
+
+        versao, url = verificar_atualizacao()
+
+        if versao:
+            if messagebox.askyesno(
+                "Atualização disponível",
+                f"Nova versão {versao} disponível.\nDeseja atualizar agora?"
+            ):
+                subprocess.Popen(["updater.exe", url])
+                sys.exit()
 
     def carregar_env():
         pass
