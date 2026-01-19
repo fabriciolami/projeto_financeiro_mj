@@ -1,13 +1,17 @@
 # view/main_app.py
 from utils.alerts import alert
 import tkinter as tk
+import os
 from tkinter import ttk, messagebox, filedialog
 from datetime import datetime
 import qrcode
 from PIL import ImageTk
 import pandas as pd
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.pdfgen import canvas
+from reportlab.lib.units import cm
+from reportlab.lib import colors
+from utils.paths import resource_path
 from db import get_conn
 from db import buscar_configs
 from db import salvar_configs
@@ -21,8 +25,6 @@ from utils.money import format_money
 from repositories.payments_repository import PaymentsRepository
 from services.financial_service import FinancialService
 from utils.env import carregar_env
-from reportlab.lib.units import cm
-from reportlab.lib import colors
 
 
     # ================= APP ================= #
