@@ -5,9 +5,21 @@ carregar_env()
 import tkinter as tk
 from tkinter import messagebox
 import logging
+import sys
+import os
 
 from view.login_screen import LoginScreen
 from view.main_app import App
+
+def set_working_dir():
+    if getattr(sys, 'frozen', False):
+        base_dir = os.path.dirname(sys.executable)
+    else:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+
+    os.chdir(base_dir)
+
+set_working_dir()
 
 def iniciar_sistema():
     def setup_logging():
