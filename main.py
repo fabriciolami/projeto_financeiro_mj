@@ -1,38 +1,74 @@
 # main.py
-from utils.env import carregar_env
-from utils.updater import verificar_atualizacao
+import sys
+import os
+
+# Garante que a raiz do projeto esteja no path (exe + python)
+if getattr(sys, 'frozen', False):
+    BASE_DIR = sys._MEIPASS
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
 
 import tkinter as tk
 from tkinter import messagebox
 import logging
 
+from utils.updater import verificar_atualizacao
 from view.login_screen import LoginScreen
 from view.main_app import App
 
 
 def setup_logging():
+    if getattr(sys, 'frozen', False):
+        base_path = os.path.dirname(sys.executable)
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+
+    log_dir = os.path.join(base_path, "logs")
+    os.makedirs(log_dir, exist_ok=True)
+
+    log_file = os.path.join(log_dir, "app.log")
+
     logging.basicConfig(
-        level=logging.INFO,
+        filename=log_file,
+        level=logging.DEBUG,
         format="%(asctime)s - %(levelname)s - %(message)s"
+    )
+
+
+def janela_progresso(root, url):
+    """Exibe uma janela de progresso para download/atualização."""
+    messagebox.showinfo(
+        "Atualização",
+        f"Redirecionando para: {url}"
     )
 
 
 def iniciar_sistema():
     try:
         # 1️⃣ Ambiente e log
-        carregar_env()
         setup_logging()
+        logging.info("Iniciando sistema...")
 
         # 2️⃣ Verifica atualização (popup)
         root = tk.Tk()
-        root.withdraw()  # Esconde a janela principal temporariamente
-
-        verificar_atualizacao(root)
-        
-        root.deiconify()  # Mostra a janela principal após a verificação
-
         # 3️⃣ Interface
         root.title("Sistema de Pagamentos")
+        root.withdraw()  # Esconde a janela principal temporariamente
+
+        # 🔔 updater NÃO bloqueia inicialização
+        versao, url = verificar_atualizacao()
+        if versao:
+            if messagebox.askyesno(
+                "Atualização disponível",
+                f"Nova versão {versao} disponível.\nDeseja atualizar agora?"
+            ):
+                janela_progresso(root, url)
+                return
+
+        root.deiconify() # Mostra a janela principal
 
         def abrir_main_app(usuario, perfil):
             try:

@@ -1,4 +1,6 @@
 from config.supabase_client import supabase
+from config.app_config import SUPABASE_URL, SUPABASE_KEY
+
 
 class PaymentsRepository:
 

@@ -6,36 +6,41 @@ import threading
 import time
 from tkinter import Toplevel, Label
 from tkinter.ttk import Progressbar
-from tkinter import messagebox
-
-try:
-    from utils.version import APP_VERSION
-except ImportError:
-    from version import APP_VERSION
+from utils.version import APP_VERSION
 
 
 GITHUB_API = "https://api.github.com/repos/fabriciolami/projeto_financeiro_mj/releases/latest"
 
 
-def verificar_atualizacao(root=None):
+def verificar_atualizacao():
     try:
         r = requests.get(GITHUB_API, timeout=5)
+
         if r.status_code != 200:
-            return
+            return None, None
 
         data = r.json()
-        versao_online = data["tag_name"].replace("v", "")
+
+        versao_online = data["tag_name"].lstrip("v")
+
+        asset = next(
+            (a for a in data["assets"] if a["name"].endswith(".exe")),
+            None
+        )
+
+        if not asset:
+            return None, None
+
+        url_exe = asset["browser_download_url"]
 
         if versao_online > APP_VERSION:
-            if messagebox.askyesno(
-                "Atualização disponível",
-                f"Nova versão {versao_online} disponível.\n\nDeseja atualizar agora?"
-            ):
-                url = data["assets"][0]["browser_download_url"]
-                janela_progresso(root, url)
+            return versao_online, url_exe
 
-    except Exception as e:
-        print("Erro ao verificar atualização:", e)
+    except Exception:
+        pass
+
+    return None, None
+
 
 
 def janela_progresso(root, url):

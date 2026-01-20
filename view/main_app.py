@@ -24,7 +24,6 @@ from decimal import Decimal
 from utils.money import format_money
 from repositories.payments_repository import PaymentsRepository
 from services.financial_service import FinancialService
-from utils.env import carregar_env
 
 
     # ================= APP ================= #
@@ -53,7 +52,6 @@ class App:
         self.load_table()
         self.aplicar_permissoes()
         self.atualizar_totais()
-        carregar_env()
 
     # ---------- UI ---------- #
 
