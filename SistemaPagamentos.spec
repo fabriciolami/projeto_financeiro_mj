@@ -3,10 +3,10 @@
 
 a = Analysis(
     ['main.py'],
-    pathex=['.'],
+    pathex=[],
     binaries=[],
     datas=[('img', 'img')],
-    hiddenimports=['utils', 'utils.paths', 'tkinter', 'PIL', 'PIL.ImageTk', 'reportlab', 'pandas', 'openpyxl', 'supabase', 'postgrest', 'realtime', 'storage3'],
+    hiddenimports=['tkinter', 'PIL', 'reportlab', 'pandas', 'openpyxl', 'supabase', 'postgrest', 'realtime', 'storage3'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

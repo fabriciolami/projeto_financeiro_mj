@@ -8,3 +8,9 @@ dist/
 
 # Ambiente virtual
 .venv/
+
+# Anotações do editor
+notas_git.txt
+
+# token
+utils/github_token.py

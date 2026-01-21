@@ -15,7 +15,7 @@ import tkinter as tk
 from tkinter import messagebox
 import logging
 
-from utils.updater import verificar_atualizacao
+from utils.updater import verificar_atualizacao, janela_progresso
 from view.login_screen import LoginScreen
 from view.main_app import App
 
@@ -35,14 +35,6 @@ def setup_logging():
         filename=log_file,
         level=logging.DEBUG,
         format="%(asctime)s - %(levelname)s - %(message)s"
-    )
-
-
-def janela_progresso(root, url):
-    """Exibe uma janela de progresso para download/atualização."""
-    messagebox.showinfo(
-        "Atualização",
-        f"Redirecionando para: {url}"
     )
 
 
