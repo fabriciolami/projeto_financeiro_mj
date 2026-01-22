@@ -703,7 +703,7 @@ class App:
             cur = conn.cursor()
             cur.execute("""
                 SELECT
-                    h.id,
+                    f.id,
                     f.nome,
                     h.tipo,
                     h.valor,
@@ -716,47 +716,58 @@ class App:
                 ORDER BY f.nome
             """, (mes, ano))
 
+
             rows = cur.fetchall()
             conn.close()
 
-            total_sal = total_adi = total_geral = Decimal("0.00")
+            from collections import defaultdict
 
+            pagamentos = defaultdict(lambda: {
+                "salario": Decimal("0.00"),
+                "adiant": Decimal("0.00")
+            })
+
+            # 🔹 AGRUPA POR FUNCIONÁRIO
             for r in rows:
+                func_id = r[0]
+                nome = r[1]
                 tipo = r[2]
                 valor = r[3] if r[3] is not None else Decimal("0.00")
 
-                salario = Decimal("0.00")
-                adiant = Decimal("0.00")
-
                 if tipo in ("Salário", "Salário+VA"):
-                    salario = valor
+                    pagamentos[(func_id, nome)]["salario"] += valor
                 elif tipo == "Adiantamento":
-                    adiant = valor
+                    pagamentos[(func_id, nome)]["adiant"] += valor
 
+            total_sal = total_adi = total_geral = Decimal("0.00")
+
+            # 🔹 INSERE UMA LINHA POR FUNCIONÁRIO
+            for (func_id, nome), valores in pagamentos.items():
+                salario = valores["salario"]
+                adiant = valores["adiant"]
                 total = salario + adiant
 
+                tree.insert("", "end", values=(
+                    func_id,
+                    nome,
+                    format_money(salario),
+                    format_money(adiant),
+                    format_money(total),
+                    ano
+                ))
+
+                self.dados_cache.append([func_id, nome, salario, adiant, total])
 
                 total_sal += salario
                 total_adi += adiant
                 total_geral += total
-
-                tree.insert("", "end", values=(
-                    r[0],
-                    r[1],
-                    format_money(salario),
-                    format_money(adiant),
-                    format_money(total),
-                    r[5]
-        ))
-
-                self.dados_cache.append([r[0], r[1], salario, adiant, total])
 
             lbl_totais.config(
                 text=(
                     f"Total Salários: R$ {total_sal:.2f}    "
                     f"Total Adiantamentos: R$ {total_adi:.2f}    "
                     f"Total Geral: R$ {total_geral:.2f}"
-        )
+                )
     )
 
 

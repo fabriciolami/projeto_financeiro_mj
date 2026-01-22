@@ -21,20 +21,8 @@ from view.main_app import App
 
 
 def setup_logging():
-    if getattr(sys, 'frozen', False):
-        base_path = os.path.dirname(sys.executable)
-    else:
-        base_path = os.path.dirname(os.path.abspath(__file__))
-
-    log_dir = os.path.join(base_path, "logs")
-    os.makedirs(log_dir, exist_ok=True)
-
-    log_file = os.path.join(log_dir, "app.log")
-
     logging.basicConfig(
-        filename=log_file,
-        level=logging.DEBUG,
-        format="%(asctime)s - %(levelname)s - %(message)s"
+        level=logging.CRITICAL
     )
 
 
