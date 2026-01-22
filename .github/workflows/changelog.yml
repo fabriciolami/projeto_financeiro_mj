@@ -3,7 +3,7 @@ name: Generate Changelog
 on:
   push:
     tags:
-      - "release-*"
+      - "v*"
 
 permissions:
   contents: write
@@ -26,7 +26,7 @@ jobs:
       - name: Generate CHANGELOG.md
         uses: orhun/git-cliff-action@v3
         with:
-          args: --config cliff.toml --output CHANGELOG.md
+          args: --config cliff.toml --tag ${{ github.ref_name }} --output CHANGELOG.md
 
       - name: Commit CHANGELOG
         uses: stefanzweifel/git-auto-commit-action@v5

@@ -8,12 +8,12 @@ from tkinter import Toplevel, Label, messagebox
 from tkinter.ttk import Progressbar
 from utils.version import APP_VERSION
 
-GITHUB_API = "https://api.github.com/repos/fabriciolami/projeto_financeiro_mj/releases/latest"
-GITHUB_TOKEN = "REMOVED_USE_ENVIRONMENT_VARIABLE"  # ⚠️ depois vamos mover para .env
+GITHUB_API = "https://api.github.com/repos/fabriciolami/projeto_financeiro_mj_dist/releases/latest"
+
 
 HEADERS = {
     "Accept": "application/vnd.github+json",
-    "Authorization": f"Bearer {GITHUB_TOKEN}"
+
 }
 
 
@@ -21,7 +21,7 @@ def verificar_atualizacao():
     try:
         print("🔎 Verificando atualização...")
         headers = {
-            "Authorization": f"Bearer {GITHUB_TOKEN}",
+            "Authorization": f"Bearer {GITHUB_API}",
             "Accept": "application/vnd.github+json"
         }
 
@@ -96,13 +96,26 @@ def baixar_e_atualizar(url, barra, win):
             if chunk:
                 f.write(chunk)
                 baixado += len(chunk)
-                barra["value"] = int((baixado / total) * 100)
+                win.after(0, barra.configure, {"value": int((baixado / total) * 100)})
+
 
     time.sleep(1)
     win.destroy()
 
+    bat = os.path.join(pasta, "update.bat")
+
+    with open(bat, "w", encoding="utf-8") as f:
+        f.write(f'''
+    @echo off
+    timeout /t 2 >nul
+    move /Y "{novo_exe}" "{exe_atual}"
+    start "" "{exe_atual}"
+    del "%~f0"
+    ''')
+
     subprocess.Popen(
-        f'cmd /c timeout 2 && move /Y "{novo_exe}" "{exe_atual}" && start "" "{exe_atual}"',
-        shell=True
+        ['cmd', '/c', bat],
+        creationflags=subprocess.CREATE_NO_WINDOW
     )
-    sys.exit()
+
+    os._exit(0)  # FORÇA encerramento do processo
