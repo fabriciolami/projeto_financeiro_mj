@@ -527,16 +527,31 @@ class App:
         win.grab_set()
         centralizar_janela(win)
 
-        var_sal = tk.BooleanVar(value=True)
-        var_adi = tk.BooleanVar(value=False)
+        mes = datetime.now().month
+        ano = datetime.now().year
+
+        salario_pago = self._pagamento_existe(fid, "Salário+VA", mes, ano)
+        adiant_pago = self._pagamento_existe(fid, "Adiantamento", mes, ano)
+        # - se salário já foi pago → adiantamento vem marcado
+        # - salário não pode ser marcado novamente
+        var_sal = tk.BooleanVar(value=not salario_pago)
+        var_adi = tk.BooleanVar(value=salario_pago and not adiant_pago)
+
 
         tk.Label(win, text="O que deseja marcar como pago?").pack(pady=10)
 
-        tk.Checkbutton(win, text="Salário + VA", variable=var_sal)\
-        .pack(anchor="w", padx=20)
+        chk_sal = tk.Checkbutton(win, text="Salário + VA", variable=var_sal)
+        chk_sal.pack(anchor="w", padx=20)
 
-        tk.Checkbutton(win, text="Adiantamento", variable=var_adi)\
-        .pack(anchor="w", padx=20)
+        chk_adi = tk.Checkbutton(win, text="Adiantamento", variable=var_adi)
+        chk_adi.pack(anchor="w", padx=20)
+
+        if salario_pago:
+            chk_sal.config(state="disabled")
+
+        if adiant_pago:
+            chk_adi.config(state="disabled")
+
 
         def confirmar():
             registrados = []
@@ -606,6 +621,24 @@ class App:
         conn.commit()
         conn.close()
         return True
+
+    def _pagamento_existe(self, fid, tipo, mes, ano):
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT 1
+            FROM historico_pagamentos
+            WHERE funcionario_id = %s
+            AND tipo = %s
+            AND mes = %s
+            AND ano = %s
+            LIMIT 1
+        """, (fid, tipo, mes, ano))
+
+        existe = cur.fetchone() is not None
+        conn.close()
+        return existe
+    
    
     def _pagamento_ja_realizado(self, fid, tipo):
         agora = datetime.now()
@@ -923,7 +956,10 @@ class App:
     # ---------- EXCLUIR PAGAMENTO ----------
         def excluir_pagamento():
             if self.perfil != "Master":
-                messagebox.showerror("Permissão negada", "Apenas o Master pode excluir pagamentos.")
+                messagebox.showerror(
+                    "Permissão negada",
+                    "Apenas o Master pode excluir pagamentos."
+                )
                 return
 
             sel = tree.selection()
@@ -931,28 +967,91 @@ class App:
                 messagebox.showwarning("Atenção", "Selecione um pagamento")
                 return
 
-            pid = tree.item(sel)["values"][0]
+            func_id = tree.item(sel)["values"][0]
+            nome = tree.item(sel)["values"][1]
+            mes = int(ent_mes.get())
+            ano = int(ent_ano.get())
 
-            confirmar = messagebox.askyesno(
-                "Confirmar exclusão",
-                "Tem certeza que deseja excluir este pagamento?\nEssa ação não pode ser desfeita."
+            win = tk.Toplevel(self.root)
+            win.title("Excluir pagamento")
+            win.geometry("330x280")
+            win.resizable(False, False)
+            win.grab_set()
+            centralizar_janela(win)
+
+            # 🔹 CONTAINER PRINCIPAL
+            container = tk.Frame(win)
+            container.pack(fill="both", expand=True, padx=10, pady=10)
+
+            var_sal = tk.BooleanVar(value=True)
+            var_adi = tk.BooleanVar(value=True)
+
+            tk.Label(container, text=f"O que deseja excluir para:\n{nome}?", font=("Segoe UI", 10, "bold")).pack(pady=10)
+            chk_sal = tk.Checkbutton(container, text="Salário + VA", variable=var_sal)
+            chk_sal.pack(anchor="w", padx=20)
+
+            chk_adi = tk.Checkbutton(container, text="Adiantamento", variable=var_adi)
+            chk_adi.pack(anchor="w", padx=20)
+
+            # 🔹 FRAME DOS BOTÕES
+            frame_btn = tk.Frame(container)
+            frame_btn.pack(fill="x", pady=20)
+
+            def confirmar_exclusao():
+                tipos = []
+
+                if var_sal.get():
+                    tipos.append("Salário+VA")
+
+                if var_adi.get():
+                    tipos.append("Adiantamento")
+
+                if not tipos:
+                    messagebox.showwarning(
+                        "Atenção",
+                        "Selecione ao menos um tipo para excluir."
+                    )
+                    return
+
+                if not messagebox.askyesno(
+                    "Confirmar exclusão",
+                    "Tem certeza que deseja excluir:\n\n"
+                    + "\n".join(f"- {t}" for t in tipos)
+                    + f"\n\nFuncionário: {nome}\nMês/Ano: {mes}/{ano}"
+                    ):
+                    return
+
+                conn = get_conn()
+                cur = conn.cursor()
+
+                for tipo in tipos:
+                    cur.execute("""
+                        DELETE FROM historico_pagamentos
+                        WHERE funcionario_id = %s
+                        AND tipo = %s
+                        AND mes = %s
+                        AND ano = %s
+                    """, (func_id, tipo, mes, ano))
+
+                conn.commit()
+                conn.close()
+
+                win.destroy()
+                filtrar()  # 🔄 recarrega do banco
+
+            messagebox.showinfo(
+                "Sucesso",
+                "Pagamento(s) excluído(s) com sucesso."
             )
 
-            if not confirmar:
-                return
+            tk.Button(frame_btn, text="Confirmar", width=12, command=confirmar_exclusao).pack(side="left", expand=True, padx=5)
 
-            conn = get_conn()
-            cur = conn.cursor()
-            cur.execute("DELETE FROM historico_pagamentos WHERE id = %s", (pid,))
-            conn.commit()
-            conn.close()
+            tk.Button(frame_btn, text="Cancelar", width=12, command=win.destroy).pack(side="right", expand=True, padx=5)
 
-            tree.delete(sel)
-            messagebox.showinfo("Sucesso", "Pagamento excluído com sucesso")  
+            # 🔹 FORÇA RECÁLCULO DO LAYOUT
+            win.update_idletasks()
+            win.minsize(win.winfo_width(), win.winfo_height())
 
-            win.lift()
-            win.focus_force()
-   
 
     # ---------- BOTÕES RELATÓRIO ----------
         frame_botoes = tk.Frame(win)
