@@ -19,11 +19,11 @@ jobs:
           fetch-depth: 0
 
       - name: Install git-cliff
-        uses: orhun/git-cliff-action@v3
-        with:
-          args: --version
+        run: |
+          curl -sSL https://github.com/orhun/git-cliff/releases/latest/download/git-cliff-linux-amd64.tar.gz \
+          | tar -xz
+          sudo mv git-cliff /usr/local/bin/git-cliff
 
       - name: Generate CHANGELOG.md
-        uses: orhun/git-cliff-action@v3
-        with:
-          args: --config cliff.toml --tag ${{ github.ref_name }} --output CHANGELOG.md
+        run: |
+          git-cliff --config cliff.toml --tag ${{ github.ref_name }} --output CHANGELOG.md
