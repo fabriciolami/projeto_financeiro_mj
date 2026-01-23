@@ -32,23 +32,23 @@ def iniciar_sistema():
         setup_logging()
         logging.info("Iniciando sistema...")
 
-        # 2️⃣ Verifica atualização (popup)
+        # 2️⃣ Tk Raiz
         root = tk.Tk()
-        # 3️⃣ Interface
-        root.title("Sistema de Pagamentos")
         root.withdraw()  # Esconde a janela principal temporariamente
 
         # 🔔 updater NÃO bloqueia inicialização
         versao, url = verificar_atualizacao()
-        if versao:
+        if versao and url:
             if messagebox.askyesno(
                 "Atualização disponível",
                 f"Nova versão {versao} disponível.\nDeseja atualizar agora?"
             ):
                 janela_progresso(root, url)
+                root.mainloop()
                 return
 
         root.deiconify() # Mostra a janela principal
+        root.title("Sistema de Pagamentos")
 
         def abrir_main_app(usuario, perfil):
             try:
