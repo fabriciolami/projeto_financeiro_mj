@@ -27,9 +27,3 @@ jobs:
         uses: orhun/git-cliff-action@v3
         with:
           args: --config cliff.toml --tag ${{ github.ref_name }} --output CHANGELOG.md
-
-      - name: Commit CHANGELOG
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "docs: atualiza changelog para ${{ github.ref_name }}"
-          file_pattern: CHANGELOG.md
