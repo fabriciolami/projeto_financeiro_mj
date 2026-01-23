@@ -20,10 +20,12 @@ jobs:
 
       - name: Install git-cliff
         run: |
-          curl -sSL https://github.com/orhun/git-cliff/releases/latest/download/git-cliff-linux-amd64.tar.gz \
-          | tar -xz
-          sudo mv git-cliff /usr/local/bin/git-cliff
+          curl -L https://github.com/orhun/git-cliff/releases/download/v2.6.1/git-cliff-2.6.1-x86_64-unknown-linux-gnu.tar.gz -o git-cliff.tar.gz
+          tar -xzf git-cliff.tar.gz
+          sudo mv git-cliff-2.6.1/git-cliff /usr/local/bin/git-cliff
+
 
       - name: Generate CHANGELOG.md
         run: |
           git-cliff --config cliff.toml --tag ${{ github.ref_name }} --output CHANGELOG.md
+
