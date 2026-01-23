@@ -7,6 +7,7 @@ import time
 from tkinter import Toplevel, Label, messagebox
 from tkinter.ttk import Progressbar
 from utils.version import APP_VERSION
+from styles import centralizar_janela
 
 GITHUB_API = "https://api.github.com/repos/fabriciolami/projeto_financeiro_mj_dist/releases/latest"
 
@@ -21,7 +22,6 @@ def verificar_atualizacao():
     try:
         print("🔎 Verificando atualização...")
         headers = {
-            "Authorization": f"Bearer {GITHUB_API}",
             "Accept": "application/vnd.github+json"
         }
 
@@ -69,6 +69,7 @@ def janela_progresso(root, url):
     win.geometry("400x130")
     win.resizable(False, False)
     win.grab_set()
+    centralizar_janela(win)
 
     Label(win, text="Baixando atualização...").pack(pady=10)
 
