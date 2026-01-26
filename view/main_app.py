@@ -2,6 +2,7 @@
 from utils.alerts import alert
 import tkinter as tk
 import os
+import logging
 from tkinter import ttk, messagebox, filedialog
 from datetime import datetime
 import qrcode
@@ -34,9 +35,8 @@ class App:
         self.usuario = usuario
         self.perfil = perfil
 
-        hoje = datetime.now()
-        self.mes_atual = hoje.month
-        self.ano_atual = hoje.year
+        self.mes_atual = datetime.now().month
+        self.ano_atual = datetime.now().year
         
         root.title(f"Sistema de Pagamentos - {perfil}")
         root.geometry("1300x750")
@@ -213,15 +213,21 @@ class App:
             messagebox.showerror("Erro", "Mês inválido (1 a 12)")
             return
 
-    
+        # salva o período como estado da tela
+        self.mes_atual = mes
+        self.ano_atual = ano
+
+        logging.critical(
+        f"DEBUG FILTRO | mes={self.mes_atual} | ano={self.ano_atual}"
+)
+
         # recarrega a tabela principal
         self.load_table()
 
         messagebox.showinfo(
-            "Período aplicado",
-            f"Período definido: {mes:02}/{ano}"
+        "Período aplicado",
+        f"Período definido: {mes:02}/{ano}"
         )
-
 
     def atualizar_totais(self):
         registros = self._extrair_dados_treeview()
@@ -283,6 +289,7 @@ class App:
     # ---------- CRUD ---------- #
 
     def load_table(self):
+        self.pagamentos_cache = {}  # 🔥 limpa cache lógico
         self.tree.delete(*self.tree.get_children())
         conn = get_conn()
         c = conn.cursor()
@@ -527,16 +534,19 @@ class App:
         win.grab_set()
         centralizar_janela(win)
 
-        mes = datetime.now().month
-        ano = datetime.now().year
+        mes = self.mes_atual
+        ano = self.ano_atual
 
         salario_pago = self._pagamento_existe(fid, "Salário+VA", mes, ano)
         adiant_pago = self._pagamento_existe(fid, "Adiantamento", mes, ano)
-        # - se salário já foi pago → adiantamento vem marcado
-        # - salário não pode ser marcado novamente
-        var_sal = tk.BooleanVar(value=not salario_pago)
-        var_adi = tk.BooleanVar(value=salario_pago and not adiant_pago)
 
+        logging.critical(
+        f"DEBUG MARK_PAID | fid={fid} | mes={mes} | ano={ano} | "
+        f"salario_pago={salario_pago} | adiant_pago={adiant_pago}"
+)
+
+        var_sal = tk.BooleanVar(value=not salario_pago) # - se salário já foi pago → adiantamento vem marcado
+        var_adi = tk.BooleanVar(value=salario_pago and not adiant_pago) # - salário não pode ser marcado novamente
 
         tk.Label(win, text="O que deseja marcar como pago?").pack(pady=10)
 
@@ -552,6 +562,7 @@ class App:
         if adiant_pago:
             chk_adi.config(state="disabled")
 
+        win.title(f"Pagamento {mes:02}/{ano}")
 
         def confirmar():
             registrados = []
@@ -582,10 +593,9 @@ class App:
             .pack(side="left", padx=5)
 
     def _registrar_pagamento(self, fid, tipo, valor):
-
+        mes = self.mes_atual
+        ano = self.ano_atual
         data_pagamento = datetime.now()
-        mes = data_pagamento.month
-        ano = data_pagamento.year
 
         conn = get_conn()
         cur = conn.cursor()
@@ -641,10 +651,9 @@ class App:
     
    
     def _pagamento_ja_realizado(self, fid, tipo):
-        agora = datetime.now()
-        mes = agora.month
-        ano = agora.year
-
+        mes = self.mes_atual
+        ano = self.ano_atual
+        
         conn = get_conn()
         cur = conn.cursor()
 

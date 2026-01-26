@@ -4,18 +4,13 @@ import sys
 import subprocess
 import threading
 import time
-from tkinter import Toplevel, Label, messagebox
+from tkinter import Toplevel, Label
 from tkinter.ttk import Progressbar
 from utils.version import APP_VERSION
 from styles import centralizar_janela
 
 GITHUB_API = "https://api.github.com/repos/fabriciolami/projeto_financeiro_mj_dist/releases/latest"
 
-
-HEADERS = {
-    "Accept": "application/vnd.github+json",
-
-}
 
 def verificar_atualizacao():
     try:
@@ -83,7 +78,7 @@ def baixar_e_atualizar(url, barra, win):
     novo_exe = os.path.join(pasta, "SistemaPagamentos_update.exe")
 
     r = requests.get(url, stream=True)
-    total = int(r.headers.get("Content-Length", 0))
+    total = int(r.headers.get("Content-Length", 0)) or 1
     baixado = 0
 
     with open(novo_exe, "wb") as f:
@@ -109,8 +104,8 @@ def baixar_e_atualizar(url, barra, win):
     ''')
 
     subprocess.Popen(
-        ['cmd', '/c', bat],
-        creationflags=subprocess.CREATE_NO_WINDOW
-    )
-
-    os._exit(0)  # FORÇA encerramento do processo
+    ['cmd', '/c', 'start', '', bat],
+    shell=True
+)
+    os._exit(0)
+    # FORÇA encerramento do processo

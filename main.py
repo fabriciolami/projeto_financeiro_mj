@@ -21,9 +21,32 @@ from view.main_app import App
 
 
 def setup_logging():
-    logging.basicConfig(
-        level=logging.CRITICAL
+    import logging
+    import os
+
+    log_dir = os.path.join(os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else __file__), "logs")
+    os.makedirs(log_dir, exist_ok=True)
+
+    log_file = os.path.join(log_dir, "app.log")
+
+    logger = logging.getLogger()
+    logger.setLevel(logging.CRITICAL)
+
+    # REMOVE handlers antigos (CRÍTICO!)
+    for h in logger.handlers[:]:
+        logger.removeHandler(h)
+
+    fh = logging.FileHandler(log_file, encoding="utf-8")
+    fh.setLevel(logging.CRITICAL)
+
+    formatter = logging.Formatter(
+        "%(asctime)s - %(levelname)s - %(message)s"
     )
+    fh.setFormatter(formatter)
+
+    logger.addHandler(fh)
+
+
 
 
 def iniciar_sistema():
