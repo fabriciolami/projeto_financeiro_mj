@@ -1,4 +1,3 @@
-raise SystemExit("TESTE — ESTE MAIN EXECUTOU")
 
 import sys
 import os
@@ -6,31 +5,14 @@ import logging
 import tkinter as tk
 from tkinter import messagebox as mb
 
-# ==== BLOQUEIO TOTAL DE POPUPS (GLOBAL) ====
-def _no_popup(*args, **kwargs):
-    return None
-_mb.showerror = _no_popup
-_mb.showwarning = _no_popup
-_mb.showinfo = _no_popup
-
-def _no_ui(*args, **kwargs):
-    return None
-
-tkinter.Tk.report_callback_exception = lambda *a: None
-tkinter.messagebox.showerror = _no_ui
-tkinter.messagebox.showwarning = _no_ui
-tkinter.messagebox.showinfo = _no_ui
-
 LOCK_FILE = os.path.join(os.getcwd(), ".app.lock")
 
 if os.path.exists(LOCK_FILE):
     os._exit(0)
-
 with open(LOCK_FILE, "w") as f:
     f.write("lock")
 
 APP_INICIADO = False
-
 
 # =============================
 # BASE DIR SEGURO (exe + dev)
@@ -43,14 +25,12 @@ else:
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-
 # =============================
 # IMPORTS DO SISTEMA
 # =============================
-#from utils.updater import verificar_atualizacao, janela_progresso
+from utils.updater import verificar_atualizacao, janela_progresso
 from view.login_screen import LoginScreen
 from view.main_app import App
-
 
 # =============================
 # LOGGING ROBUSTO
@@ -109,7 +89,7 @@ def iniciar_sistema():
             try:
                 versao, url = verificar_atualizacao()
                 if versao and url:
-                    if messagebox.askyesno(
+                    if mb.askyesno(
                         "Atualização disponível",
                         f"Nova versão {versao} disponível.\nDeseja atualizar agora?"
                     ):
