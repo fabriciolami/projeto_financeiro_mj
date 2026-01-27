@@ -1,9 +1,41 @@
-# main.py
+raise SystemExit("TESTE — ESTE MAIN EXECUTOU")
+
 import sys
 import os
+import logging
+import tkinter as tk
+from tkinter import messagebox as mb
 
-# Garante que a raiz do projeto esteja no path (exe + python)
-if getattr(sys, 'frozen', False):
+# ==== BLOQUEIO TOTAL DE POPUPS (GLOBAL) ====
+def _no_popup(*args, **kwargs):
+    return None
+_mb.showerror = _no_popup
+_mb.showwarning = _no_popup
+_mb.showinfo = _no_popup
+
+def _no_ui(*args, **kwargs):
+    return None
+
+tkinter.Tk.report_callback_exception = lambda *a: None
+tkinter.messagebox.showerror = _no_ui
+tkinter.messagebox.showwarning = _no_ui
+tkinter.messagebox.showinfo = _no_ui
+
+LOCK_FILE = os.path.join(os.getcwd(), ".app.lock")
+
+if os.path.exists(LOCK_FILE):
+    os._exit(0)
+
+with open(LOCK_FILE, "w") as f:
+    f.write("lock")
+
+APP_INICIADO = False
+
+
+# =============================
+# BASE DIR SEGURO (exe + dev)
+# =============================
+if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
     BASE_DIR = sys._MEIPASS
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -11,96 +43,116 @@ else:
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-import tkinter as tk
-from tkinter import messagebox
-import logging
 
-from utils.updater import verificar_atualizacao, janela_progresso
+# =============================
+# IMPORTS DO SISTEMA
+# =============================
+#from utils.updater import verificar_atualizacao, janela_progresso
 from view.login_screen import LoginScreen
 from view.main_app import App
 
 
+# =============================
+# LOGGING ROBUSTO
+# =============================
 def setup_logging():
-    import logging
-    import os
+    log_base = (
+        os.path.dirname(sys.executable)
+        if getattr(sys, "frozen", False)
+        else os.path.dirname(__file__)
+    )
 
-    log_dir = os.path.join(os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else __file__), "logs")
+    log_dir = os.path.join(log_base, "logs")
     os.makedirs(log_dir, exist_ok=True)
 
     log_file = os.path.join(log_dir, "app.log")
 
     logger = logging.getLogger()
-    logger.setLevel(logging.CRITICAL)
+    logger.setLevel(logging.INFO)
 
-    # REMOVE handlers antigos (CRÍTICO!)
     for h in logger.handlers[:]:
         logger.removeHandler(h)
 
     fh = logging.FileHandler(log_file, encoding="utf-8")
-    fh.setLevel(logging.CRITICAL)
+    fh.setLevel(logging.INFO)
 
     formatter = logging.Formatter(
-        "%(asctime)s - %(levelname)s - %(message)s"
+        "%(asctime)s | %(levelname)s | %(message)s"
     )
     fh.setFormatter(formatter)
 
     logger.addHandler(fh)
 
 
+# =============================
+# SISTEMA PRINCIPAL
+# =============================
 def iniciar_sistema():
+    global APP_INICIADO
+
+    # 🚫 BLOQUEIA LOOP DE INICIALIZAÇÃO
+    if APP_INICIADO:
+        return
+    APP_INICIADO = True
+
     try:
-        # 1️⃣ Ambiente e log
         setup_logging()
-        logging.info("Iniciando sistema...")
+        logging.info("Sistema iniciando...")
 
-        # 2️⃣ Tk Raiz
         root = tk.Tk()
-        root.withdraw()  # Esconde a janela principal temporariamente
+        root.withdraw()  # evita piscada e múltiplas janelas
 
-        # 🔔 updater NÃO bloqueia inicialização
-        versao, url = verificar_atualizacao()
-        if versao and url:
-            if messagebox.askyesno(
-                "Atualização disponível",
-                f"Nova versão {versao} disponível.\nDeseja atualizar agora?"
-            ):
-                janela_progresso(root, url)
-                root.mainloop()
-                return
+        # =============================
+        # UPDATER (somente em EXE)
+        # =============================
+        if getattr(sys, "frozen", False):
+            try:
+                versao, url = verificar_atualizacao()
+                if versao and url:
+                    if messagebox.askyesno(
+                        "Atualização disponível",
+                        f"Nova versão {versao} disponível.\nDeseja atualizar agora?"
+                    ):
+                        janela_progresso(root, url)
+                        root.mainloop()
+                        return
+            except Exception:
+                logging.exception("Falha no updater (ignorado)")
+                # updater nunca pode matar o app
 
-        root.deiconify() # Mostra a janela principal
+        root.deiconify()
         root.title("Sistema de Pagamentos")
 
+        # =============================
+        # CALLBACKS
+        # =============================
         def abrir_main_app(usuario, perfil):
             try:
-                for widget in root.winfo_children():
-                    widget.destroy()
+                for w in root.winfo_children():
+                    w.destroy()
                 App(root, usuario=usuario, perfil=perfil)
             except Exception:
-                logging.exception("Erro ao abrir Main App")
-                messagebox.showerror(
-                    "Erro",
-                    "Erro ao abrir o sistema principal."
-                )
+                logging.exception("Erro ao abrir App principal")
 
         def voltar_login(event=None):
-            for widget in root.winfo_children():
-                widget.destroy()
+            for w in root.winfo_children():
+                w.destroy()
             LoginScreen(root, callback_sucesso=abrir_main_app)
 
-        # 🔗 binding do logout
         root.bind("<<Logout>>", voltar_login)
 
         LoginScreen(root, callback_sucesso=abrir_main_app)
         root.mainloop()
 
-    except Exception as e:
-    logging.critical(f"ERRO FATAL: {e}", exc_info=True)
-    messagebox.showerror(
-        "Erro crítico",
-        "O sistema encontrou um erro inesperado."
-    )
-
+    except Exception:
+        try:
+            import logging
+            logging.exception("ERRO NA INICIALIZAÇÃO")
+        except Exception:
+            pass
+        # MORTE SILENCIOSA — SEM LOOP
+        import os
+        os._exit(0)
 
 if __name__ == "__main__":
     iniciar_sistema()
