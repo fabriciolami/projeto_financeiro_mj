@@ -47,8 +47,6 @@ def setup_logging():
     logger.addHandler(fh)
 
 
-
-
 def iniciar_sistema():
     try:
         # 1️⃣ Ambiente e log
@@ -96,12 +94,12 @@ def iniciar_sistema():
         LoginScreen(root, callback_sucesso=abrir_main_app)
         root.mainloop()
 
-    except Exception:
-        logging.exception("Erro ao iniciar o sistema")
-        messagebox.showerror(
-            "Erro crítico",
-            "Erro ao iniciar o sistema. Verifique os logs."
-        )
+    except Exception as e:
+    logging.critical(f"ERRO FATAL: {e}", exc_info=True)
+    messagebox.showerror(
+        "Erro crítico",
+        "O sistema encontrou um erro inesperado."
+    )
 
 
 if __name__ == "__main__":
