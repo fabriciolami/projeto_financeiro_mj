@@ -1,5 +1,6 @@
 # view/login_screen.py
 import os
+import logging
 import tkinter as tk
 from tkinter import messagebox
 from PIL import ImageTk, Image
@@ -79,29 +80,29 @@ class LoginScreen:
         self.root.bind("<Return>", lambda e: self.autenticar())
 
     def autenticar(self):
-    try:
-        conn = db.get_conn()
-        c = conn.cursor()
+        try:
+            conn = db.get_conn()
+            c = conn.cursor()
 
-        c.execute(
-            "SELECT login, perfil FROM usuarios WHERE login=%s AND senha=%s",
-            (self.ent_user.get(), self.ent_pass.get())
-        )
-        res = c.fetchone()
-        conn.close()
+            c.execute(
+                "SELECT login, perfil FROM usuarios WHERE login=%s AND senha=%s",
+                (self.ent_user.get(), self.ent_pass.get())
+            )
+            res = c.fetchone()
+            conn.close()
 
-    except Exception as e:
-        logging.critical(f"ERRO BANCO: {e}")
-        messagebox.showerror(
-            "Banco indisponível",
-            "Não foi possível conectar ao banco.\nTente novamente mais tarde."
-        )
-        return
+        except Exception as e:
+            logging.critical(f"ERRO BANCO: {e}")
+            messagebox.showerror(
+                "Banco indisponível",
+                "Não foi possível conectar ao banco.\nTente novamente mais tarde."
+            )
+            return
 
-    if res:
-        for widget in self.root.winfo_children():
-            widget.destroy()
-        self.callback_sucesso(res[0], res[1])
-    else:
-        messagebox.showerror("Erro", "Login ou senha incorretos")
+        if res:
+            for widget in self.root.winfo_children():
+                widget.destroy()
+            self.callback_sucesso(res[0], res[1])
+        else:
+            messagebox.showerror("Erro", "Login ou senha incorretos")
 
