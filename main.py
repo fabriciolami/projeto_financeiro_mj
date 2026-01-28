@@ -81,6 +81,7 @@ def iniciar_sistema():
 
         root = tk.Tk()
         root.withdraw()  # evita piscada e múltiplas janelas
+        os.environ["ALLOW_UI_ALERTS"] = "1"
 
         # =============================
         # UPDATER (somente em EXE)

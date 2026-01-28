@@ -3,10 +3,33 @@
 
 a = Analysis(
     ['main.py'],
-    pathex=['.'],
+    pathex=[],
     binaries=[],
-    datas=[('img', 'img')],
-    hiddenimports=['utils', 'utils.updater', 'view', 'view.login_screen', 'view.main_app', 'repositories', 'config', 'tkinter', 'PIL', 'reportlab', 'pandas', 'openpyxl', 'supabase', 'postgrest', 'realtime', 'storage3'],
+    datas=[],
+    hiddenimports=[
+        # Supabase core
+        "supabase",
+
+        # Auth
+        "gotrue",
+        "gotrue.errors",
+
+        # Database
+        "postgrest",
+        "postgrest.errors",
+
+        # Realtime / storage
+        "realtime",
+        "storage3",
+
+        # HTTP stack
+        "httpx",
+        "httpcore",
+        "anyio",
+
+        # Websocket (usado pelo realtime)
+        "websockets",
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

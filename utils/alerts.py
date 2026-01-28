@@ -1,9 +1,21 @@
 from tkinter import messagebox
+import os
+import sys
+
+def can_show_ui():
+    """
+    Só permite popup se:
+    - não estiver rodando como serviço
+    - não estiver em inicialização
+    """
+    return os.environ.get("ALLOW_UI_ALERTS") == "1"
+
 
 def alert(tipo, msg, titulo=None):
-    """
-    tipo: 'erro' | 'aviso' | 'info'
-    """
+    if not can_show_ui():
+        # NÃO mostra popup
+        return
+
     titulos = {
         "erro": "Erro",
         "aviso": "Atenção",
@@ -19,6 +31,8 @@ def alert(tipo, msg, titulo=None):
     else:
         messagebox.showinfo(titulo_final, msg)
 
-# SIM/NO confirmar dialogo
+
 def confirm(title, message):
+    if not can_show_ui():
+        return False
     return messagebox.askyesno(title, message)
