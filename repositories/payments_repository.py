@@ -1,10 +1,13 @@
-from config.supabase_client import supabase
-from config.app_config import SUPABASE_URL, SUPABASE_KEY
+from config.supabase_client import get_supabase
 
 
 class PaymentsRepository:
 
     def listar_por_mes(self, mes, ano):
+        supabase = get_supabase()
+        if supabase is None:
+            raise RuntimeError("Supabase indisponivel no momento")
+        
         response = (
             supabase
             .table("pagamentos")

@@ -1,16 +1,17 @@
 
 import sys
+import logging as log
 import os
-import logging
 import tkinter as tk
 from tkinter import messagebox as mb
 
 LOCK_FILE = os.path.join(os.getcwd(), ".app.lock")
 
-if os.path.exists(LOCK_FILE):
-    os._exit(0)
-with open(LOCK_FILE, "w") as f:
-    f.write("lock")
+if getattr(sys, "frozen", False):
+    if os.path.exists(LOCK_FILE):
+        os._exit(0)
+    with open(LOCK_FILE, "w") as f:
+        f.write("lock")
 
 APP_INICIADO = False
 
@@ -24,6 +25,7 @@ else:
 
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
+
 
 # =============================
 # IMPORTS DO SISTEMA
@@ -47,16 +49,16 @@ def setup_logging():
 
     log_file = os.path.join(log_dir, "app.log")
 
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
+    logger = log.getLogger()
+    logger.setLevel(log.INFO)
 
     for h in logger.handlers[:]:
         logger.removeHandler(h)
 
-    fh = logging.FileHandler(log_file, encoding="utf-8")
-    fh.setLevel(logging.INFO)
+    fh = log.FileHandler(log_file, encoding="utf-8")
+    fh.setLevel(log.INFO)
 
-    formatter = logging.Formatter(
+    formatter = log.Formatter(
         "%(asctime)s | %(levelname)s | %(message)s"
     )
     fh.setFormatter(formatter)
@@ -77,7 +79,7 @@ def iniciar_sistema():
 
     try:
         setup_logging()
-        logging.info("Sistema iniciando...")
+        log.info("Sistema iniciando...")
 
         root = tk.Tk()
         root.withdraw()  # evita piscada e múltiplas janelas
@@ -98,7 +100,7 @@ def iniciar_sistema():
                         root.mainloop()
                         return
             except Exception:
-                logging.exception("Falha no updater (ignorado)")
+                log.exception("Falha no updater (ignorado)")
                 # updater nunca pode matar o app
 
         root.deiconify()
@@ -113,7 +115,7 @@ def iniciar_sistema():
                     w.destroy()
                 App(root, usuario=usuario, perfil=perfil)
             except Exception:
-                logging.exception("Erro ao abrir App principal")
+                log.exception("Erro ao abrir App principal")
 
         def voltar_login(event=None):
             for w in root.winfo_children():
@@ -127,12 +129,9 @@ def iniciar_sistema():
 
     except Exception:
         try:
-            import logging
-            logging.exception("ERRO NA INICIALIZAÇÃO")
+            log.exception("ERRO NA INICIALIZAÇÃO")
         except Exception:
             pass
-        # MORTE SILENCIOSA — SEM LOOP
-        import os
         os._exit(0)
 
 if __name__ == "__main__":
