@@ -5,41 +5,11 @@ import os
 import tkinter as tk
 from tkinter import messagebox as mb
 
-# =============================
-# LOCK APENAS PARA EXE
-# =============================
-LOCK_FILE = os.path.join(os.path.dirname(sys.executable), ".app.lock")
-
-def criar_lock():
-    if not getattr(sys, "frozen", False):
-        return  # sem lock em desenvolvimento
-
-    if os.path.exists(LOCK_FILE):
-        os._exit(0)
-
-    try:
-        with open(LOCK_FILE, "w") as f:
-            f.write(str(os.getpid()))
-    except Exception:
-        os._exit(0)
-
-
-def remover_lock():
-    if not getattr(sys, "frozen", False):
-        return
-
-    try:
-        if os.path.exists(LOCK_FILE):
-            os.remove(LOCK_FILE)
-    except Exception:
-        pass
-
 
 APP_INICIADO = False
 
-# =============================
 # BASE DIR SEGURO (exe + dev)
-# =============================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
     BASE_DIR = sys._MEIPASS
 else:
@@ -49,7 +19,6 @@ if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
 
-# =============================
 # IMPORTS DO SISTEMA
 # =============================
 from utils.updater import verificar_atualizacao, janela_progresso
@@ -93,7 +62,6 @@ def setup_logging():
         # =============================
 def iniciar_sistema():
     global APP_INICIADO
-    criar_lock()
 
     # 🚫 BLOQUEIA LOOP DE INICIALIZAÇÃO
     if APP_INICIADO:
@@ -107,13 +75,7 @@ def iniciar_sistema():
         root = tk.Tk()
         root.withdraw()  # evita piscada e múltiplas janelas
         os.environ["ALLOW_UI_ALERTS"] = "1"
-        root.protocol(
-            "WM_DELETE_WINDOW",
-            lambda: (remover_lock(), root.destroy())
-)
-        # =============================
-        # UPDATER (somente em EXE)
-        # =============================
+
         if getattr(sys, "frozen", False):
             try:
                 versao, url = verificar_atualizacao()

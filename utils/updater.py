@@ -73,8 +73,7 @@ def janela_progresso(root, url):
 
 
 def baixar_e_atualizar(url, barra, win):
-    exe_atual = sys.executable
-    pasta = os.path.dirname(exe_atual)
+    pasta = os.path.dirname(sys.executable)
     novo_exe = os.path.join(pasta, "SistemaPagamentos_update.exe")
 
     r = requests.get(url, stream=True)
@@ -86,26 +85,35 @@ def baixar_e_atualizar(url, barra, win):
             if chunk:
                 f.write(chunk)
                 baixado += len(chunk)
-                win.after(0, barra.configure, {"value": int((baixado / total) * 100)})
+                win.after(0, barra.configure, {
+                    "value": int((baixado / total) * 100)
+                })
 
-
-    time.sleep(1)
     win.destroy()
 
     bat = os.path.join(pasta, "update.bat")
 
     with open(bat, "w", encoding="utf-8") as f:
-        f.write(f'''
-    @echo off
-    timeout /t 2 >nul
-    move /Y "{novo_exe}" "{exe_atual}"
-    start "" "{exe_atual}"
-    del "%~f0"
-    ''')
+        f.write(r'''
+@echo off
+cd /d "%~dp0"
+
+timeout /t 2 /nobreak > nul
+
+if exist "SistemaPagamentos.exe" (
+    del "SistemaPagamentos.exe"
+)
+
+rename "SistemaPagamentos_update.exe" "SistemaPagamentos.exe"
+
+start "" "%~dp0SistemaPagamentos.exe"
+
+del "%~f0"
+''')
 
     subprocess.Popen(
-    ['cmd', '/c', 'start', '', bat],
-    shell=True
-)
+        ['cmd', '/c', bat],
+        creationflags=subprocess.CREATE_NEW_CONSOLE
+    )
+
     os._exit(0)
-    # FORÇA encerramento do processo
