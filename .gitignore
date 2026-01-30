@@ -14,3 +14,10 @@ notas_git.txt
 
 # token
 utils/github_token.py
+
+# configs locais
+config/local_config.py
+
+# segurança extra
+.env
+*.key

@@ -1,7 +1,8 @@
 # config/app_config.py
+import os
 
 APP_NAME = "SistemaPagamentos"
-APP_VERSION = "1.0.2"
+APP_VERSION = "1.0.1"
 
 CIDADE_PIX = "CRUZEIRO"
 UF_PIX = "SP"
@@ -14,5 +15,5 @@ DB_CONFIG = {
     "port": 3306
 }
 
-SUPABASE_URL = "https://jhgroptfwifgkfgatggz.supabase.co"
-SUPABASE_KEY = "REMOVED_USE_ENVIRONMENT_VARIABLE"
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")

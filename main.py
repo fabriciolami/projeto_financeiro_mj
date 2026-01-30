@@ -5,13 +5,35 @@ import os
 import tkinter as tk
 from tkinter import messagebox as mb
 
-LOCK_FILE = os.path.join(os.getcwd(), ".app.lock")
+# =============================
+# LOCK APENAS PARA EXE
+# =============================
+LOCK_FILE = os.path.join(os.path.dirname(sys.executable), ".app.lock")
 
-if getattr(sys, "frozen", False):
+def criar_lock():
+    if not getattr(sys, "frozen", False):
+        return  # sem lock em desenvolvimento
+
     if os.path.exists(LOCK_FILE):
         os._exit(0)
-    with open(LOCK_FILE, "w") as f:
-        f.write("lock")
+
+    try:
+        with open(LOCK_FILE, "w") as f:
+            f.write(str(os.getpid()))
+    except Exception:
+        os._exit(0)
+
+
+def remover_lock():
+    if not getattr(sys, "frozen", False):
+        return
+
+    try:
+        if os.path.exists(LOCK_FILE):
+            os.remove(LOCK_FILE)
+    except Exception:
+        pass
+
 
 APP_INICIADO = False
 
@@ -66,11 +88,12 @@ def setup_logging():
     logger.addHandler(fh)
 
 
-# =============================
-# SISTEMA PRINCIPAL
-# =============================
+        # =============================
+        # SISTEMA PRINCIPAL
+        # =============================
 def iniciar_sistema():
     global APP_INICIADO
+    criar_lock()
 
     # 🚫 BLOQUEIA LOOP DE INICIALIZAÇÃO
     if APP_INICIADO:
@@ -84,7 +107,10 @@ def iniciar_sistema():
         root = tk.Tk()
         root.withdraw()  # evita piscada e múltiplas janelas
         os.environ["ALLOW_UI_ALERTS"] = "1"
-
+        root.protocol(
+            "WM_DELETE_WINDOW",
+            lambda: (remover_lock(), root.destroy())
+)
         # =============================
         # UPDATER (somente em EXE)
         # =============================

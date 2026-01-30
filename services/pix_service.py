@@ -1,7 +1,5 @@
 # services/pix_service.py
-from config import CIDADE_PIX
-from config.app_config import SUPABASE_URL, SUPABASE_KEY
-
+from config.app_config import CIDADE_PIX
 
 def crc16(payload):
     crc = 0xFFFF
