@@ -3,18 +3,15 @@ import os
 import logging
 
 def get_conn():
-    try:
-        return psycopg2.connect(
-            host=os.getenv("DB_HOST"),
-            database=os.getenv("DB_NAME"),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            port=int(os.getenv("DB_PORT", "5432")),
-            sslmode=os.getenv("DB_SSLMODE", "require")
+    return psycopg2.connect(
+        host=os.getenv("DB_HOST"),
+        database=os.getenv("DB_NAME"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        port=int(os.getenv("DB_PORT", 5432)),
+        sslmode="require"
     )
-    except Exception:
-        logging.error("Erro ao conectar ao banco de dados.")
-        return None
+
 
 def buscar_configs():
     conn = get_conn()
