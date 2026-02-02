@@ -4,6 +4,7 @@ import logging as log
 import os
 import tkinter as tk
 from tkinter import messagebox as mb
+from dotenv import load_dotenv
 
 
 APP_INICIADO = False
@@ -24,6 +25,35 @@ if BASE_DIR not in sys.path:
 from utils.updater import verificar_atualizacao, janela_progresso
 from view.login_screen import LoginScreen
 from view.main_app import App
+
+# CARREGA VARIÁVEIS DE AMBIENTE
+def carregar_env():
+    # Se for exe (PyInstaller)
+    if getattr(sys, "frozen", False):
+        base_dir = os.path.dirname(sys.executable)
+    else:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+
+    env_path = os.path.join(base_dir, ".env")
+    load_dotenv(env_path)
+
+carregar_env()
+
+import os
+import sys
+
+# REMOVER EXE ANTIGO
+def limpar_exe_antigo():
+    pasta = os.path.dirname(sys.executable)
+    antigo = os.path.join(pasta, "SistemaPagamentos.exe")
+
+    if os.path.exists(antigo):
+        try:
+            os.remove(antigo)
+        except PermissionError:
+            pass
+
+limpar_exe_antigo()
 
 # =============================
 # LOGGING ROBUSTO

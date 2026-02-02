@@ -85,35 +85,16 @@ def baixar_e_atualizar(url, barra, win):
             if chunk:
                 f.write(chunk)
                 baixado += len(chunk)
-                win.after(0, barra.configure, {
-                    "value": int((baixado / total) * 100)
-                })
+                win.after(
+                    0,
+                    barra.configure,
+                    {"value": int((baixado / total) * 100)}
+                )
 
     win.destroy()
 
-    bat = os.path.join(pasta, "update.bat")
+    # abre o novo exe
+    subprocess.Popen([novo_exe], cwd=pasta)
 
-    with open(bat, "w", encoding="utf-8") as f:
-        f.write(r'''
-@echo off
-cd /d "%~dp0"
-
-timeout /t 2 /nobreak > nul
-
-if exist "SistemaPagamentos.exe" (
-    del "SistemaPagamentos.exe"
-)
-
-rename "SistemaPagamentos_update.exe" "SistemaPagamentos.exe"
-
-start "" "%~dp0SistemaPagamentos.exe"
-
-del "%~f0"
-''')
-
-    subprocess.Popen(
-        ['cmd', '/c', bat],
-        creationflags=subprocess.CREATE_NEW_CONSOLE
-    )
-
+    # fecha o atual
     os._exit(0)

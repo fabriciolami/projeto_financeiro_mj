@@ -20,6 +20,10 @@ PrivilegesRequired=admin
 
 [Files]
 Source: "..\dist\SistemaPagamentos.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: ".env"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\SistemaPagamentos.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: ".env"; DestDir: "{app}"; Flags: onlyifdoesntexist
+
 
 [Icons]
 Name: "{group}\SistemaPagamentos"; Filename: "{app}\SistemaPagamentos.exe"

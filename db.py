@@ -1,14 +1,20 @@
 import psycopg2
+import os
+import logging
 
 def get_conn():
-    return psycopg2.connect(
-        host="aws-1-sa-east-1.pooler.supabase.com",
-        database="postgres",
-        user="postgres.jhgroptfwifgkfgatggz",
-        password="REMOVED_USE_ENVIRONMENT_VARIABLE",
-        port=6543,
-        sslmode="require"
+    try:
+        return psycopg2.connect(
+            host=os.getenv("DB_HOST"),
+            database=os.getenv("DB_NAME"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            port=int(os.getenv("DB_PORT", "5432")),
+            sslmode=os.getenv("DB_SSLMODE", "require")
     )
+    except Exception:
+        logging.error("Erro ao conectar ao banco de dados.")
+        return None
 
 def buscar_configs():
     conn = get_conn()

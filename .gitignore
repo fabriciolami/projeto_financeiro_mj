@@ -21,3 +21,7 @@ config/local_config.py
 # segurança extra
 .env
 *.key
+
+# env files
+.env
+*.env
