@@ -1,32 +1,24 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-import os
-from PyInstaller.utils.hooks import collect_submodules
-
-project_dir = os.getcwd()
-
-hiddenimports = (
-    collect_submodules("utils")
-    + collect_submodules("view")
-    + collect_submodules("services")
-    + collect_submodules("config")
-)
 
 a = Analysis(
     ['main.py'],
-    pathex=[project_dir],
+    pathex=['.'],
     binaries=[],
     datas=[
+        ('utils', 'utils'),
+        ('view', 'view'),
+        ('services', 'services'),
         ('img', 'img'),
     ],
-    hiddenimports=hiddenimports,
+    hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
     noarchive=False,
+    optimize=0,
 )
-
 pyz = PYZ(a.pure)
 
 exe = EXE(
@@ -36,5 +28,16 @@ exe = EXE(
     a.datas,
     [],
     name='SistemaPagamentos',
-    console=False,
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    console=True,
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
 )
