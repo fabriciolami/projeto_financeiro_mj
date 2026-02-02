@@ -13,16 +13,16 @@ OutputDir=output
 OutputBaseFilename=setup_SistemaPagamentos
 Compression=lzma
 SolidCompression=yes
-ArchitecturesAllowed=x64
-ArchitecturesInstallIn64BitMode=x64
+ArchitecturesInstallIn64BitMode=x64os
 DisableProgramGroupPage=yes
 PrivilegesRequired=admin
 
 [Files]
+; EXE principal
 Source: "..\dist\SistemaPagamentos.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: ".env"; DestDir: "{app}"; Flags: ignoreversion
-Source: "dist\SistemaPagamentos.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: ".env"; DestDir: "{app}"; Flags: onlyifdoesntexist
+
+; .env de exemplo (cria apenas na primeira instalacao)
+Source: ".env.example"; DestDir: "{app}"; DestName: ".env"; Flags: onlyifdoesntexist
 
 
 [Icons]
