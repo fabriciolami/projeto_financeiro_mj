@@ -4,6 +4,8 @@ import logging as log
 import os
 import tkinter as tk
 from tkinter import messagebox as mb
+from security.permissions import has_permission
+
 
 APP_INICIADO = False
 
@@ -15,7 +17,7 @@ else:
 
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
-    
+
 # IMPORTS DO SISTEMA
 # =============================
 from utils.updater import verificar_atualizacao, janela_progresso
@@ -25,13 +27,14 @@ from view.main_app import App
 # LOGGING ROBUSTO
 # =============================
 def setup_logging():
-    log_base = (
-        os.path.dirname(sys.executable)
-        if getattr(sys, "frozen", False)
-        else os.path.dirname(__file__)
-    )
+    if sys.platform == "win32":
+        base_dir = os.getenv("LOCALAPPDATA")
+    else:
+        base_dir = os.path.expanduser("~")
 
-    log_dir = os.path.join(log_base, "logs")
+    app_dir = os.path.join(base_dir, "SistemaPagamentos")
+    log_dir = os.path.join(app_dir, "logs")
+
     os.makedirs(log_dir, exist_ok=True)
 
     log_file = os.path.join(log_dir, "app.log")
@@ -51,7 +54,6 @@ def setup_logging():
     fh.setFormatter(formatter)
 
     logger.addHandler(fh)
-
 
         # =============================
         # SISTEMA PRINCIPAL

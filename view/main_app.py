@@ -25,6 +25,7 @@ from decimal import Decimal
 from utils.money import format_money
 from repositories.payments_repository import PaymentsRepository
 from services.financial_service import FinancialService
+from security.permissions import has_permission
 
 
     # ================= APP ================= #
@@ -282,9 +283,14 @@ class App:
         alert("Sucesso", "Datas de pagamento salvas com sucesso")
 
     def aplicar_permissoes(self):
-        if self.perfil != "Master":
+        if not has_permission(self.perfil, "funcionario_excluir"):
             self.btn_delete.config(state="disabled")
+
+        if not has_permission(self.perfil, "funcionario_editar"):
             self.btn_edit.config(state="disabled")
+
+        if not has_permission(self.perfil, "funcionario_criar"):
+            self.btn_save.config(state="disabled")
 
     # ---------- CRUD ---------- #
 
@@ -305,6 +311,13 @@ class App:
 
 
     def save(self):
+        if not has_permission(self.perfil, "funcionario_criar"):
+            messagebox.showerror(
+                "Permissão negada",
+                "Você não tem permissão para cadastrar funcionários."
+            )
+            return
+
         f = self.func_edit or Funcionario()
         f.nome = self.vars["nome"].get()
         f.admissao = self.vars["admissao"].get()
@@ -313,10 +326,12 @@ class App:
         f.salario = float(self.vars["salario"].get())
         f.adiantamento = float(self.vars["adiant"].get())
         f.va = float(self.vars["va"].get())
+
         f.salvar()
         self.func_edit = None
         self.clear()
         self.load_table()
+
 
     def clear(self):
         for v in self.vars.values():
