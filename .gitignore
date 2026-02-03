@@ -1,27 +1,51 @@
-# Python
+# ======================
+# Python cache
+# ======================
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
-# PyInstaller
+# ======================
+# Virtual environments
+# ======================
+venv/
+.venv/
+env/
+ENV/
+
+# ======================
+# Environment variables / secrets
+# ======================
+.env
+
+# ======================
+# Logs
+# ======================
+logs/
+*.log
+
+# ======================
+# Build / Distribuição
+# ======================
 build/
 dist/
 
-# Ambiente virtual
-.venv/
+# ======================
+# PyInstaller extras
+# ======================
+*.exe
+*.dll
 
-# Anotações do editor
-notas_git.txt
+# ======================
+# IDE / OS
+# ======================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
 
-# token
-utils/github_token.py
-
-# configs locais
-config/local_config.py
-
-# segurança extra
-.env
-*.key
-
-# env files
-.env
-*.env
+# ======================
+# Testes locais
+# ======================
+teste_*.py
