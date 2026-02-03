@@ -55,7 +55,6 @@ def limpar_exe_antigo():
 
 limpar_exe_antigo()
 
-# =============================
 # LOGGING ROBUSTO
 # =============================
 def setup_logging():
