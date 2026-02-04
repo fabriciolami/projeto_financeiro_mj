@@ -1,51 +1,24 @@
-# ======================
-# Python cache
-# ======================
+# Python
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
 
-# ======================
-# Virtual environments
-# ======================
-venv/
-.venv/
-env/
-ENV/
-
-# ======================
-# Environment variables / secrets
-# ======================
-.env
-
-# ======================
-# Logs
-# ======================
-logs/
-*.log
-
-# ======================
-# Build / Distribuição
-# ======================
+# PyInstaller
 build/
 dist/
 
-# ======================
-# PyInstaller extras
-# ======================
-*.exe
-*.dll
+# Ambiente virtual
+.venv/
 
-# ======================
-# IDE / OS
-# ======================
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db
+# Anotações do editor
+notas_git.txt
 
-# ======================
-# Testes locais
-# ======================
-teste_*.py
+# configs locais
+config/local_config.py
+
+# segurança extra
+.env
+*.key
+
+# env files
+.env
+*.env
