@@ -1,21 +1,4 @@
-<<<<<<< HEAD
-# --- Core ---
-supabase==2.6.0
-httpx==0.27.0
 
-# --- Supabase deps (pinadas para evitar pyroaring) ---
-gotrue==2.9.0
-postgrest==0.16.4
-realtime==1.0.6
-storage3==0.7.6
-
-# --- Utilidades ---
-python-dotenv==1.0.1
-requests==2.31.0
-packaging==24.1
-
-# --- Logs / runtime ---
-tzdata==2024.1; platform_system=="Windows"
 =======
 dotenv==0.9.9
 pandas==2.3.3

@@ -3,7 +3,7 @@ from db import get_conn
 
 class Funcionario:
     def __init__(self, id=None, nome="", admissao="", banco="",
-                 chave_pix="", salario=0.0, adiantamento=0.0, va=0.0):
+                 chave_pix="", salario=0.0, adiantamento=0.0, va=0.0, desconto=0.0):
         self.id = id
         self.nome = nome
         self.admissao = admissao
@@ -12,6 +12,7 @@ class Funcionario:
         self.salario = salario
         self.adiantamento = adiantamento
         self.va = va
+        self.desconto = desconto
 
     @staticmethod
     def buscar_por_id(funcionario_id):
@@ -20,7 +21,7 @@ class Funcionario:
 
         c.execute("""
             SELECT id, nome, admissao, banco, chave_pix,
-                   salario_liquido, adiantamento, va
+                   salario_liquido, adiantamento, va, desconto
             FROM funcionarios
             WHERE id = %s
         """, (funcionario_id,))
@@ -37,7 +38,8 @@ class Funcionario:
                 chave_pix=row[4],
                 salario=float(row[5]),
                 adiantamento=float(row[6]),
-                va=float(row[7])
+                va=float(row[7]),
+                desconto=float(row[8])
             )
         return None
 
@@ -49,22 +51,22 @@ class Funcionario:
             c.execute("""
                 UPDATE funcionarios
                 SET nome=%s, admissao=%s, banco=%s, chave_pix=%s,
-                    salario_liquido=%s, adiantamento=%s, va=%s
+                    salario_liquido=%s, adiantamento=%s, va=%s, desconto=%s
                 WHERE id=%s
             """, (
                 self.nome, self.admissao, self.banco, self.chave_pix,
-                self.salario, self.adiantamento, self.va, self.id
+                self.salario, self.adiantamento, self.va, self.desconto, self.id
             ))
         else:
             c.execute("""
                 INSERT INTO funcionarios
                 (nome, admissao, banco, chave_pix,
-                 salario_liquido, adiantamento, va)
-                VALUES (%s,%s,%s,%s,%s,%s,%s)
+                 salario_liquido, adiantamento, va, desconto)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
                 RETURNING id
             """, (
                 self.nome, self.admissao, self.banco, self.chave_pix,
-                self.salario, self.adiantamento, self.va
+                self.salario, self.adiantamento, self.va, self.desconto
             ))
             self.id = c.fetchone()[0]
 
@@ -75,7 +77,7 @@ class Funcionario:
         conn = get_conn()
         cur = conn.cursor()
         cur.execute("""
-            SELECT id, nome, salario, va, adiantamento, chave_pix
+            SELECT id, nome, salario_liquido, va, desconto, adiantamento, chave_pix
             FROM funcionarios
             WHERE ativo = TRUE
             ORDER BY nome

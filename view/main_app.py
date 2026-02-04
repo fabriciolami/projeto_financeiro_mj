@@ -40,11 +40,11 @@ class App:
         self.ano_atual = datetime.now().year
         
         root.title(f"Sistema de Pagamentos - {perfil}")
-        root.geometry("1300x750")
+        root.geometry("1450x800")
         centralizar_janela(root)
 
         self.vars = {k: tk.StringVar() for k in
-                     ["nome", "admissao", "banco", "pix", "salario", "adiant", "va"]}
+                     ["nome", "admissao", "banco", "pix", "desconto", "salario", "adiant", "va"]}
 
         self.func_edit = None
 
@@ -121,6 +121,7 @@ class App:
             ("Admissão", "admissao"),
             ("Banco", "banco"),
             ("Chave PIX", "pix"),
+            ("Desconto", "desconto"),
             ("Salário", "salario"),
             ("Adiantamento", "adiant"),
             ("VA", "va"),
@@ -132,7 +133,7 @@ class App:
 
         # frame de ações do formulário
         actions_form = tk.Frame(form)
-        actions_form.grid(row=0, column=14, columnspan=6, padx=(30, 0), sticky="e")
+        actions_form.grid(row=0, column=16, columnspan=6, padx=(30, 0), sticky="e")
 
         self.btn_save = tk.Button(actions_form, text="Salvar", font=("Segoe UI", 10), command=self.save, **BTN_VERDE)
         self.btn_save.pack(side="left", padx=5)
@@ -146,7 +147,7 @@ class App:
         self.btn_delete.pack(side="left", padx=5)
         add_hover(self.btn_delete, bg_hover="#c43020")
 
-        cols = ("ID", "Nome", "Banco", "Salário", "VA", "Adiant.", "Total")
+        cols = ("ID", "Nome", "Banco", "Desconto", "Salário", "VA", "Adiant.", "Total")
         self.tree = ttk.Treeview(self.root, columns=cols, show="headings")
 
         for c in cols:
@@ -251,9 +252,10 @@ class App:
         for item in self.tree.get_children():
             v = self.tree.item(item, "values")
             dados.append({
-                "salario": v[3],
-                "va": v[4],
-                "adiantamento": v[5]
+                "desconto": v[3],
+                "salario": v[4],
+                "va": v[5],
+                "adiantamento": v[6]
             })
         return dados
 
@@ -299,11 +301,16 @@ class App:
         self.tree.delete(*self.tree.get_children())
         conn = get_conn()
         c = conn.cursor()
-        c.execute("SELECT id, nome, banco, salario_liquido, va, adiantamento FROM funcionarios WHERE ativo = TRUE ORDER BY nome")
+        c.execute("""
+            SELECT id, nome, banco, desconto, salario_liquido, va, adiantamento
+            FROM funcionarios
+            WHERE ativo = TRUE
+            ORDER BY id ASC
+        """)
         for r in c.fetchall():
-            total = r[3] + r[4] + r[5]
+            total = r[4] + r[5] - r[3] + r[6]
             self.tree.insert("", "end", values=(
-                r[0], r[1], r[2], f"{r[3]:.2f}", f"{r[4]:.2f}", f"{r[5]:.2f}", f"{total:.2f}"
+                r[0], r[1], r[2], f"{r[3]:.2f}", f"{r[4]:.2f}", f"{r[5]:.2f}", f"{r[6]:.2f}", f"{total:.2f}"
             ))
         conn.close()
         self.atualizar_totais()
@@ -326,6 +333,18 @@ class App:
         f.salario = float(self.vars["salario"].get())
         f.adiantamento = float(self.vars["adiant"].get())
         f.va = float(self.vars["va"].get())
+        f.desconto = float(self.vars["desconto"].get())
+
+        if f.desconto < 0:
+            messagebox.showerror("Erro", "Desconto não pode ser negativo.")
+            return
+
+        if f.desconto > (f.salario + f.va):
+            messagebox.showerror(
+                "Erro",
+                "Desconto não pode ser maior que Salário + VA."
+            )
+            return
 
         f.salvar()
         self.func_edit = None
@@ -348,6 +367,7 @@ class App:
         self.vars["admissao"].set(f.admissao)
         self.vars["banco"].set(f.banco)
         self.vars["pix"].set(f.chave_pix)
+        self.vars["desconto"].set(f.desconto)
         self.vars["salario"].set(f.salario)
         self.vars["adiant"].set(f.adiantamento)
         self.vars["va"].set(f.va)
@@ -453,7 +473,7 @@ class App:
                 return
 
             if tipo_pgto.get() == "sal":
-                valor = f.salario + f.va
+                valor = f.salario + f.va - f.desconto
                 tipo = "SAL"
             else:
                 valor = f.adiantamento
@@ -583,7 +603,7 @@ class App:
             registrados = []
 
             if var_sal.get():
-                if self._registrar_pagamento(fid, "Salário+VA", f.salario + f.va):
+                if self._registrar_pagamento(fid, "Salário+VA", f.salario + f.va - f.desconto):
                     registrados.append("Salário+VA")
 
             if var_adi.get():
@@ -770,7 +790,7 @@ class App:
                 JOIN funcionarios f ON f.id = h.funcionario_id
                 WHERE h.mes = %s
                 AND h.ano = %s
-                ORDER BY f.nome
+                ORDER BY id ASC
             """, (mes, ano))
 
 
@@ -891,7 +911,7 @@ class App:
                 c.drawCentredString(
                     largura / 2,
                     altura - 2.2 * cm,
-                    "RELATÓRIO MENSAL DE PAGAMENTOS"
+                    "RELATÓRIO MENSAL DE PAGAMENTOS - MARMORARIA JARDIM"
                 )
 
                 c.setFont("Helvetica", 11)
@@ -929,7 +949,7 @@ class App:
                 c.drawRightString(
                     largura - 2 * cm,
                     1.5 * cm,
-                    "Sistema de Pagamentos"
+                    "Sistema de Pagamentos - Fabricio Lami © 2025"
                 )
                 c.setFillColor(colors.black)
 

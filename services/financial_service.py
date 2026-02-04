@@ -11,9 +11,10 @@ class FinancialService:
         for r in registros:
             salario = float(r["salario"])
             va = float(r["va"])
+            desconto = float(r["desconto"])
             adiantamento = float(r["adiantamento"])
 
-            total_salario_va += salario + va
+            total_salario_va += salario + va - desconto
             total_adiantamento += adiantamento
 
         return {
