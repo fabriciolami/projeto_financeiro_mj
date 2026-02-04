@@ -1,2 +1,2 @@
 APP_NAME = "SistemaPagamentos"
-APP_VERSION = "1.0.1"
+APP_VERSION = "1.0.5"

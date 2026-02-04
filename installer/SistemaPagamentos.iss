@@ -1,5 +1,5 @@
 #define MyAppName "SistemaPagamentos"
-#define MyAppVersion "1.0.1"
+#define MyAppVersion "1.0.5"
 #define MyAppExeName "SistemaPagamentos.exe"
 
 [Setup]
