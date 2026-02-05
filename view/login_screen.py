@@ -1,10 +1,10 @@
 # view/login_screen.py
-import os
-import logging
+import os # para verificar se o arquivo de logo existe
+import logging # para logar erros de banco
 import tkinter as tk
-from tkinter import messagebox
-from PIL import ImageTk, Image
-import db
+from tkinter import messagebox # para mostrar mensagens de erro
+from PIL import ImageTk, Image # para carregar a logo e os ícones de olho
+import db # para conectar ao banco e autenticar o usuário
 from styles import centralizar_janela
 from styles import preparar_janela
 from styles import entry_rounded

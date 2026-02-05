@@ -78,11 +78,11 @@ def centralizar_janela(janela):
 
     janela.geometry(f"{largura}x{altura}+{x}+{y}")
 
-def preparar_janela(janela, largura, altura):
-    janela.geometry(f"{largura}x{altura}")
-    janela.resizable(False, False)
-    centralizar_janela(janela)
-    janela.focus_force()
+def preparar_janela(janela, largura, altura): # configura tamanho fixo
+    janela.geometry(f"{largura}x{altura}") # define tamanho
+    janela.resizable(False, False) # desabilita redimensionamento
+    centralizar_janela(janela) # centraliza
+    janela.focus_force() # força foco na janela
 
 def entry_rounded(master, show=None):
     container = tk.Frame(master, bg="#f2f4f8")
