@@ -9,6 +9,7 @@ from styles import centralizar_janela
 from styles import preparar_janela
 from styles import entry_rounded
 from utils.paths import resource_path
+from utils.version import APP_VERSION
 
 class LoginScreen:
     def __init__(self, root, callback_sucesso):
@@ -60,21 +61,15 @@ class LoginScreen:
 
 
         # ---------- BOTÃO LOGIN ----------
-        btn_login = tk.Button(
-            self.root,
-            text="ENTRAR",
-            bg="#1976d2",
-            fg="white",
-            font=("Segoe UI", 10, "bold"),
-            relief="flat",
-            cursor="hand2",
-            command=self.autenticar
-    )
+        btn_login = tk.Button(self.root,text="ENTRAR",bg="#1976d2",fg="white",font=("Segoe UI", 10,'bold'),relief="flat",cursor="hand2",command=self.autenticar)
         btn_login.pack(fill="x", padx=60, pady=(10, 20))
 
         btn_login.bind("<Enter>", lambda e: btn_login.config(bg="#1565c0"))
         btn_login.bind("<Leave>", lambda e: btn_login.config(bg="#1976d2"))
 
+        # ---------- VERSÃO ----------
+        tk.Label(self.root, text=f"Versão {APP_VERSION}", bg="#f2f4f8", fg="#888", font=("Segoe UI", 8)).pack(pady=(0, 10))
+        tk.Label(self.root, text="© 2026 Desenvolvido por Fabricio Lami", bg="#f2f4f8", fg="#888", font=("Segoe UI", 8)).pack()
 
         # Enter para logar
         self.root.bind("<Return>", lambda e: self.autenticar())
