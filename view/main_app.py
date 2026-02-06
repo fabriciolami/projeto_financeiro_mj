@@ -329,7 +329,7 @@ class App:
         f.nome = self.vars["nome"].get()
         f.admissao = self.vars["admissao"].get()
         f.banco = self.vars["banco"].get()
-        f.chave_pix = self.vars["pix"].get()
+        f.chave_pix = self.vars["pix"].get().strip()
         f.salario = float(self.vars["salario"].get())
         f.adiantamento = float(self.vars["adiant"].get())
         f.va = float(self.vars["va"].get())
@@ -479,6 +479,10 @@ class App:
                 valor = f.adiantamento
                 tipo = "ADI"
 
+            if valor <= 0:
+                alert("erro", "Valor do PIX deve ser maior que zero.")
+                return
+
             mes = self.ent_mes_pgto.get()
             ano = self.ent_ano_pgto.get()
 
@@ -500,12 +504,16 @@ class App:
             data = f"{ano_int}{mes_int:02}01"
             txid = f"{tipo}{data}{f.id}"
 
-            payload = gerar_payload_pix(
-                f.chave_pix,
-                valor,
-                f.nome,
-                txid
-            )
+            try:
+                payload = gerar_payload_pix(
+                    f.chave_pix,
+                    valor,
+                    f.nome,
+                    txid
+                )
+            except ValueError as e:
+                alert("erro", str(e))
+                return
 
             win.destroy()
             descricao = "Salário + VA" if tipo_pgto.get() == "sal" else "Adiantamento Salarial"
