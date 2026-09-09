@@ -1,6 +1,7 @@
 import os
 import psycopg2
 import logging
+from config.supabase_client import get_supabase
 
 def get_conn():
     try:
@@ -18,28 +19,34 @@ def get_conn():
 
 
 def buscar_configs():
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT dia_salario, dia_adiantamento
-        FROM configs
-        WHERE id = 1
-    """)
-    row = cur.fetchone()
-    cur.close()
-    conn.close()
-    return row
+    supabase = get_supabase()
+    if supabase is None:
+        raise RuntimeError("Supabase não configurado")
+
+    response = (
+        supabase
+        .table("configs")
+        .select("dia_salario, dia_adiantamento")
+        .eq("id", 1)
+        .single()
+        .execute()
+    )
+    data = response.data
+    return data["dia_salario"], data["dia_adiantamento"]
 
 
 def salvar_configs(dia_salario, dia_adiantamento):
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("""
-        UPDATE configs
-        SET dia_salario = %s,
-            dia_adiantamento = %s
-        WHERE id = 1
-    """, (dia_salario, dia_adiantamento))
-    conn.commit()
-    cur.close()
-    conn.close()
+    supabase = get_supabase()
+    if supabase is None:
+        raise RuntimeError("Supabase não configurado")
+
+    (
+        supabase
+        .table("configs")
+        .update({
+            "dia_salario": dia_salario,
+            "dia_adiantamento": dia_adiantamento,
+        })
+        .eq("id", 1)
+        .execute()
+    )

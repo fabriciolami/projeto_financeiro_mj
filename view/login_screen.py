@@ -4,7 +4,7 @@ import logging # para logar erros de banco
 import tkinter as tk
 from tkinter import messagebox # para mostrar mensagens de erro
 from PIL import ImageTk, Image # para carregar a logo e os ícones de olho
-import db # para conectar ao banco e autenticar o usuário
+from config.supabase_client import get_supabase
 from styles import centralizar_janela
 from styles import preparar_janela
 from styles import entry_rounded
@@ -75,29 +75,43 @@ class LoginScreen:
         self.root.bind("<Return>", lambda e: self.autenticar())
 
     def autenticar(self):
-        try:
-            conn = db.get_conn()
-            c = conn.cursor()
+        email = self.ent_user.get().strip()
+        senha = self.ent_pass.get()
 
-            c.execute(
-                "SELECT login, perfil FROM usuarios WHERE login=%s AND senha=%s",
-                (self.ent_user.get(), self.ent_pass.get())
+        if not email or not senha:
+            messagebox.showwarning("Atenção", "Informe o e-mail e a senha.")
+            return
+
+        try:
+            supabase = get_supabase()
+            if supabase is None:
+                raise RuntimeError("Supabase não configurado")
+
+            response = supabase.auth.sign_in_with_password({
+                "email": email,
+                "password": senha,
+            })
+            usuario = response.user
+
+            perfil_response = (
+                supabase
+                .table("perfis")
+                .select("nome")
+                .eq("id", usuario.id)
+                .single()
+                .execute()
             )
-            res = c.fetchone()
-            conn.close()
+            perfil = perfil_response.data["nome"]
 
         except Exception as e:
             logging.critical(f"ERRO BANCO: {e}")
             messagebox.showerror(
-                "Banco indisponível",
-                "Não foi possível conectar ao banco.\nTente novamente mais tarde."
+                "Falha no login",
+                "E-mail, senha ou perfil inválido."
             )
             return
 
-        if res:
-            for widget in self.root.winfo_children():
-                widget.destroy()
-            self.callback_sucesso(res[0], res[1])
-        else:
-            messagebox.showerror("Erro", "Login ou senha incorretos")
+        for widget in self.root.winfo_children():
+            widget.destroy()
+        self.callback_sucesso(usuario.email, perfil)
 

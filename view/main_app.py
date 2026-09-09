@@ -16,6 +16,7 @@ from utils.paths import resource_path
 from db import get_conn
 from db import buscar_configs
 from db import salvar_configs
+from config.supabase_client import get_supabase
 from models import Funcionario 
 from services.pix_service import gerar_payload_pix # Importando do novo serviço
 from styles import BTN_VERDE, BTN_AZUL, BTN_ROXO, BTN_PADRAO, BTN_VERMELHO
@@ -285,39 +286,48 @@ class App:
         alert("Sucesso", "Datas de pagamento salvas com sucesso")
 
     def aplicar_permissoes(self):
-        if not has_permission(self.perfil, "funcionario_excluir"):
-            self.btn_delete.config(state="disabled")
+        pode_excluir = has_permission(self.perfil, "funcionario_excluir")
+        pode_editar = has_permission(self.perfil, "funcionario_editar")
+        pode_criar = has_permission(self.perfil, "funcionario_criar")
 
-        if not has_permission(self.perfil, "funcionario_editar"):
-            self.btn_edit.config(state="disabled")
-
-        if not has_permission(self.perfil, "funcionario_criar"):
-            self.btn_save.config(state="disabled")
+        self.btn_delete.config(state="normal" if pode_excluir else "disabled")
+        self.btn_edit.config(state="normal" if pode_editar else "disabled")
+        self.btn_save.config(state="normal" if pode_criar else "disabled")
+        logging.info(
+            "Permissões carregadas | perfil=%r | criar=%s | editar=%s | excluir=%s",
+            self.perfil,
+            pode_criar,
+            pode_editar,
+            pode_excluir,
+        )
 
     # ---------- CRUD ---------- #
 
     def load_table(self):
         self.pagamentos_cache = {}  # 🔥 limpa cache lógico
         self.tree.delete(*self.tree.get_children())
-        conn = get_conn()
-        c = conn.cursor()
-        c.execute("""
-            SELECT id, nome, banco, desconto, salario_liquido, va, adiantamento
-            FROM funcionarios
-            WHERE ativo = TRUE
-            ORDER BY id ASC
-        """)
-        for r in c.fetchall():
-            total = r[4] + r[5] - r[3] + r[6]
+        for funcionario in Funcionario.listar():
+            desconto = float(funcionario["desconto"] or 0)
+            salario = float(funcionario["salario_liquido"] or 0)
+            va = float(funcionario["va"] or 0)
+            adiantamento = float(funcionario["adiantamento"] or 0)
+            total = salario + va - desconto + adiantamento
             self.tree.insert("", "end", values=(
-                r[0], r[1], r[2], f"{r[3]:.2f}", f"{r[4]:.2f}", f"{r[5]:.2f}", f"{r[6]:.2f}", f"{total:.2f}"
+                funcionario["id"],
+                funcionario["nome"],
+                funcionario.get("banco", ""),
+                f"{desconto:.2f}",
+                f"{salario:.2f}",
+                f"{va:.2f}",
+                f"{adiantamento:.2f}",
+                f"{total:.2f}"
             ))
-        conn.close()
         self.atualizar_totais()
 
 
 
     def save(self):
+        logging.info("Clique em Salvar recebido | perfil=%r", self.perfil)
         if not has_permission(self.perfil, "funcionario_criar"):
             messagebox.showerror(
                 "Permissão negada",
@@ -330,10 +340,17 @@ class App:
         f.admissao = self.vars["admissao"].get()
         f.banco = self.vars["banco"].get()
         f.chave_pix = self.vars["pix"].get().strip()
-        f.salario = float(self.vars["salario"].get())
-        f.adiantamento = float(self.vars["adiant"].get())
-        f.va = float(self.vars["va"].get())
-        f.desconto = float(self.vars["desconto"].get())
+        try:
+            f.salario = float((self.vars["salario"].get() or "0").replace(",", "."))
+            f.adiantamento = float((self.vars["adiant"].get() or "0").replace(",", "."))
+            f.va = float((self.vars["va"].get() or "0").replace(",", "."))
+            f.desconto = float((self.vars["desconto"].get() or "0").replace(",", "."))
+        except ValueError:
+            messagebox.showerror(
+                "Dados inválidos",
+                "Salário, adiantamento, VA e desconto devem ser números."
+            )
+            return
 
         if f.desconto < 0:
             messagebox.showerror("Erro", "Desconto não pode ser negativo.")
@@ -346,10 +363,23 @@ class App:
             )
             return
 
-        f.salvar()
+        try:
+            f.salvar()
+        except ValueError as exc:
+            messagebox.showerror("Dados inválidos", str(exc))
+            return
+        except Exception as exc:
+            logging.exception("Erro ao salvar funcionário")
+            messagebox.showerror(
+                "Erro ao salvar",
+                f"Não foi possível salvar o funcionário.\n\n{exc}"
+            )
+            return
+
         self.func_edit = None
         self.clear()
         self.load_table()
+        messagebox.showinfo("Sucesso", "Funcionário salvo com sucesso.")
 
 
     def clear(self):
@@ -638,80 +668,59 @@ class App:
     def _registrar_pagamento(self, fid, tipo, valor):
         mes = self.mes_atual
         ano = self.ano_atual
-        data_pagamento = datetime.now()
+        supabase = get_supabase()
+        if supabase is None:
+            raise RuntimeError("Supabase não configurado")
 
-        conn = get_conn()
-        cur = conn.cursor()
+        usuario = supabase.auth.get_user().user
+        existente = (
+            supabase
+            .table("historico_pagamentos")
+            .select("id")
+            .eq("funcionario_id", fid)
+            .eq("tipo", tipo)
+            .eq("mes", mes)
+            .eq("ano", ano)
+            .limit(1)
+            .execute()
+        )
+        if existente.data:
+            return False
 
-        # BLOQUEIO DE DUPLICIDADE
-        cur.execute("""
-            SELECT 1
-            FROM historico_pagamentos
-            WHERE funcionario_id = %s
-            AND tipo = %s
-            AND mes = %s
-            AND ano = %s
-        """, (fid, tipo, mes, ano))
-
-        if cur.fetchone():
-            conn.close()
-            return False  # já pago
-
-        # INSERT
-        cur.execute("""
-            INSERT INTO historico_pagamentos
-                (funcionario_id, data, tipo, valor, mes, ano)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (
-            fid,
-            data_pagamento.date(),
-            tipo,
-            valor,
-            mes,
-            ano
-        ))
-
-        conn.commit()
-        conn.close()
+        supabase.table("historico_pagamentos").insert({
+            "funcionario_id": fid,
+            "tipo": tipo,
+            "valor": valor,
+            "mes": mes,
+            "ano": ano,
+            "status": "PENDENTE",
+            "criado_por": usuario.id,
+        }).execute()
         return True
 
     def _pagamento_existe(self, fid, tipo, mes, ano):
-        conn = get_conn()
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT 1
-            FROM historico_pagamentos
-            WHERE funcionario_id = %s
-            AND tipo = %s
-            AND mes = %s
-            AND ano = %s
-            LIMIT 1
-        """, (fid, tipo, mes, ano))
+        supabase = get_supabase()
+        if supabase is None:
+            raise RuntimeError("Supabase não configurado")
 
-        existe = cur.fetchone() is not None
-        conn.close()
-        return existe
+        response = (
+            supabase
+            .table("historico_pagamentos")
+            .select("id")
+            .eq("funcionario_id", fid)
+            .eq("tipo", tipo)
+            .eq("mes", mes)
+            .eq("ano", ano)
+            .limit(1)
+            .execute()
+        )
+        return bool(response.data)
     
    
     def _pagamento_ja_realizado(self, fid, tipo):
         mes = self.mes_atual
         ano = self.ano_atual
-        
-        conn = get_conn()
-        cur = conn.cursor()
-
-        cur.execute("""
-            SELECT 1
-            FROM historico_pagamentos
-            WHERE funcionario_id = %s
-            AND tipo = %s
-            AND mes = %s
-            AND ano = %s
-        """, (fid, tipo, mes, ano))
-
-        existe = cur.fetchone() is not None
-        conn.close()
-        return existe
+        return self._pagamento_existe(fid, tipo, mes, ano)
 
 
     # ---------- RELATÓRIOS ---------- #

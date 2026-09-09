@@ -1,4 +1,20 @@
-from db import get_conn
+from datetime import datetime
+
+from config.supabase_client import get_supabase
+
+
+def normalizar_data_admissao(valor):
+    valor = (valor or "").strip()
+    if not valor:
+        return None
+
+    for formato in ("%d/%m/%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(valor, formato).date().isoformat()
+        except ValueError:
+            continue
+
+    raise ValueError("A admissão deve estar no formato DD/MM/AAAA.")
 
 
 class Funcionario:
@@ -16,82 +32,95 @@ class Funcionario:
 
     @staticmethod
     def buscar_por_id(funcionario_id):
-        conn = get_conn()
-        c = conn.cursor()
+        supabase = get_supabase()
+        if supabase is None:
+            raise RuntimeError("Supabase não configurado")
 
-        c.execute("""
-            SELECT id, nome, admissao, banco, chave_pix,
-                   salario_liquido, adiantamento, va, desconto
-            FROM funcionarios
-            WHERE id = %s
-        """, (funcionario_id,))
-
-        row = c.fetchone()
-        conn.close()
+        response = (
+            supabase
+            .table("funcionarios")
+            .select("id, nome, admissao, banco, chave_pix, salario_liquido, adiantamento, va, desconto")
+            .eq("id", funcionario_id)
+            .single()
+            .execute()
+        )
+        row = response.data
 
         if row:
             return Funcionario(
-                id=row[0],
-                nome=row[1],
-                admissao=row[2],
-                banco=row[3],
-                chave_pix=row[4],
-                salario=float(row[5]),
-                adiantamento=float(row[6]),
-                va=float(row[7]),
-                desconto=float(row[8])
+                id=row["id"],
+                nome=row["nome"],
+                admissao=row["admissao"] or "",
+                banco=row["banco"] or "",
+                chave_pix=row["chave_pix"] or "",
+                salario=float(row["salario_liquido"] or 0),
+                adiantamento=float(row["adiantamento"] or 0),
+                va=float(row["va"] or 0),
+                desconto=float(row["desconto"] or 0)
             )
         return None
 
     def salvar(self):
-        conn = get_conn()
-        c = conn.cursor()
+        supabase = get_supabase()
+        if supabase is None:
+            raise RuntimeError("Supabase não configurado")
 
+        dados = {
+            "nome": self.nome,
+            "admissao": normalizar_data_admissao(self.admissao),
+            "banco": self.banco,
+            "chave_pix": self.chave_pix,
+            "salario_liquido": self.salario,
+            "adiantamento": self.adiantamento,
+            "va": self.va,
+            "desconto": self.desconto,
+        }
         if self.id:
-            c.execute("""
-                UPDATE funcionarios
-                SET nome=%s, admissao=%s, banco=%s, chave_pix=%s,
-                    salario_liquido=%s, adiantamento=%s, va=%s, desconto=%s
-                WHERE id=%s
-            """, (
-                self.nome, self.admissao, self.banco, self.chave_pix,
-                self.salario, self.adiantamento, self.va, self.desconto, self.id
-            ))
+            (
+                supabase
+                .table("funcionarios")
+                .update(dados)
+                .eq("id", self.id)
+                .execute()
+            )
         else:
-            c.execute("""
-                INSERT INTO funcionarios
-                (nome, admissao, banco, chave_pix,
-                 salario_liquido, adiantamento, va, desconto)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-                RETURNING id
-            """, (
-                self.nome, self.admissao, self.banco, self.chave_pix,
-                self.salario, self.adiantamento, self.va, self.desconto
-            ))
-            self.id = c.fetchone()[0]
+            response = (
+                supabase
+                .table("funcionarios")
+                .insert(dados)
+                .execute()
+            )
+            if response.data:
+                self.id = response.data[0]["id"]
 
-        conn.commit()
-        conn.close()
+        return self
 
+    @staticmethod
     def listar():
-        conn = get_conn()
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT id, nome, salario_liquido, va, desconto, adiantamento, chave_pix
-            FROM funcionarios
-            WHERE ativo = TRUE
-            ORDER BY nome
-        """)
-        rows = cur.fetchall()
-        conn.close()
-        return rows
+        supabase = get_supabase()
+        if supabase is None:
+            raise RuntimeError("Supabase não configurado")
 
-    def excluir(fid):
-        conn = get_conn()
-        cur = conn.cursor()
-        cur.execute(
-            "UPDATE funcionarios SET ativo = FALSE WHERE id = %s",
-            (fid,)
+        response = (
+            supabase
+            .table("funcionarios")
+            .select("id, nome, banco, salario_liquido, va, desconto, adiantamento, chave_pix")
+            .eq("ativo", True)
+            .order("nome")
+            .execute()
         )
-        conn.commit()
-        conn.close()
+        return response.data
+
+    @staticmethod
+    def excluir(fid):
+        supabase = get_supabase()
+        if supabase is None:
+            raise RuntimeError("Supabase não configurado")
+
+        (
+            supabase
+            .table("funcionarios")
+            .update({"ativo": False})
+            .eq("id", fid)
+            .execute()
+        )
