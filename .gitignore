@@ -41,6 +41,7 @@ logs/
 *.db
 backups/
 exports/
+docs
 
 # Arquivos pessoais do editor e do sistema operacional
 .vscode/
