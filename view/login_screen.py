@@ -111,6 +111,7 @@ class LoginScreen:
             )
             return
 
+        self.root.unbind("<Return>")
         for widget in self.root.winfo_children():
             widget.destroy()
         self.callback_sucesso(usuario.email, perfil)

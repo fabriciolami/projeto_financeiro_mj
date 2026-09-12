@@ -1,25 +1,54 @@
-# Python
+# Python e caches de ferramentas
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
 
-# PyInstaller
+# Executáveis e instaladores gerados (preservar .spec e .iss)
 build/
 dist/
+installer/output/
+*.exe
+*.msi
+*.egg-info/
 
-# Ambiente virtual
+# Ambientes virtuais
 .venv/
+venv/
+env/
 
-# Anotações do editor
-notas_git.txt
-
-# configs locais
+# Configurações locais e credenciais
 config/local_config.py
 config/local.config.py
-
-# segurança extra
 .env
-*.key
-
-# env files
-.env
+.env.*
 *.env
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Logs e dados locais
+logs/
+*.log
+*.sqlite
+*.sqlite3
+*.db
+backups/
+exports/
+
+# Arquivos pessoais do editor e do sistema operacional
+.vscode/
+.idea/
+notas_git.txt
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.tmp
+*.bak
+~$*

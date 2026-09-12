@@ -2,7 +2,7 @@
 import os
 
 APP_NAME = "SistemaPagamentos"
-APP_VERSION = "1.0.1"
+from utils.version import APP_VERSION
 
 CIDADE_PIX = "CRUZEIRO"
 UF_PIX = "SP"

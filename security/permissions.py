@@ -16,7 +16,7 @@ PERMISSIONS = {
 }
 
 def has_permission(perfil, permissao):
-    perfil = perfil.upper()
+    perfil = (perfil or "").strip().upper()
     if perfil == "MASTER":
         return True  # 🔥 master sempre pode tudo
     return PERMISSIONS.get(perfil, {}).get(permissao, False)

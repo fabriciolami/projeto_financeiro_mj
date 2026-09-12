@@ -1,5 +1,5 @@
 #define MyAppName "SistemaPagamentos"
-#define MyAppVersion "1.0.5"
+#define MyAppVersion "1.0.7"
 #define MyAppExeName "SistemaPagamentos.exe"
 
 [Setup]
@@ -17,6 +17,9 @@ ArchitecturesAllowed=x64os
 ArchitecturesInstallIn64BitMode=x64os
 DisableProgramGroupPage=yes
 PrivilegesRequired=admin
+
+[Languages]
+Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
 
 [Files]
 Source: "..\dist\SistemaPagamentos.exe"; DestDir: "{app}"; Flags: ignoreversion

@@ -13,7 +13,6 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.units import cm
 from reportlab.lib import colors
 from utils.paths import resource_path
-from db import get_conn
 from db import buscar_configs
 from db import salvar_configs
 from config.supabase_client import get_supabase
@@ -35,13 +34,14 @@ class App:
     def __init__(self, root, usuario, perfil):
         self.root = root
         self.usuario = usuario
-        self.perfil = perfil
+        self.perfil = perfil.strip().upper()
 
         self.mes_atual = datetime.now().month
         self.ano_atual = datetime.now().year
         
         root.title(f"Sistema de Pagamentos - {perfil}")
         root.geometry("1450x800")
+        root.resizable(True, True)
         centralizar_janela(root)
 
         self.vars = {k: tk.StringVar() for k in
@@ -263,6 +263,9 @@ class App:
 
     def logout(self):
         if messagebox.askyesno("Sair", "Deseja realmente sair do sistema?"):
+            supabase = get_supabase()
+            if supabase is not None:
+                supabase.auth.sign_out()
             for widget in self.root.winfo_children():
                 widget.destroy()
 
@@ -390,7 +393,7 @@ class App:
         sel = self.tree.selection()
         if not sel:
             return
-        fid = self.tree.item(sel)["values"][0]
+        fid = self.tree.item(sel[0])["values"][0]
         f = Funcionario.buscar_por_id(fid)
         self.func_edit = f
         self.vars["nome"].set(f.nome)
@@ -409,7 +412,7 @@ class App:
             messagebox.showwarning("Atenção", "Selecione um funcionário.")
             return
 
-        fid = self.tree.item(sel)["values"][0]
+        fid = self.tree.item(sel[0])["values"][0]
         f = Funcionario.buscar_por_id(fid)
 
         if not messagebox.askyesno(
@@ -454,7 +457,7 @@ class App:
             alert("aviso", "Selecione um funcionário para gerar o PIX.")
             return
 
-        fid = self.tree.item(sel)["values"][0]
+        fid = self.tree.item(sel[0])["values"][0]
         f = Funcionario.buscar_por_id(fid)
 
         win = tk.Toplevel(self.root)
@@ -513,8 +516,8 @@ class App:
                 alert("erro", "Valor do PIX deve ser maior que zero.")
                 return
 
-            mes = self.ent_mes_pgto.get()
-            ano = self.ent_ano_pgto.get()
+            mes = str(self.mes_atual)
+            ano = str(self.ano_atual)
 
             if not mes or not ano:
                 alert("erro", "Informe o mês e o ano do pagamento.")
@@ -588,7 +591,7 @@ class App:
     # ---------- PAGAMENTO ---------- #
 
     def mark_paid(self):
-        if self.perfil != "Master":
+        if not has_permission(self.perfil, "marcar_pagamento"):
             messagebox.showerror("Acesso negado", "Somente Master pode marcar pagamento")
             return
 
@@ -597,7 +600,7 @@ class App:
             messagebox.showwarning("Atenção", "Selecione um funcionário")
             return
 
-        fid = self.tree.item(sel)["values"][0]
+        fid = self.tree.item(sel[0])["values"][0]
         f = Funcionario.buscar_por_id(fid)
 
         win = tk.Toplevel(self.root)
@@ -666,6 +669,8 @@ class App:
             .pack(side="left", padx=5)
 
     def _registrar_pagamento(self, fid, tipo, valor):
+        if not has_permission(self.perfil, "marcar_pagamento"):
+            raise PermissionError("Sem permissão para marcar pagamentos.")
         mes = self.mes_atual
         ano = self.ano_atual
         supabase = get_supabase()
@@ -693,8 +698,10 @@ class App:
             "valor": valor,
             "mes": mes,
             "ano": ano,
-            "status": "PENDENTE",
+            "status": "CONFIRMADO",
             "criado_por": usuario.id,
+            "confirmado_por": usuario.id,
+            "confirmado_em": datetime.now().astimezone().isoformat(),
         }).execute()
         return True
 
@@ -757,7 +764,7 @@ class App:
         cols = ("pid", "nome", "salario", "adiant", "total_mes", "ano")
         tree = ttk.Treeview(win, columns=cols, show="headings")
 
-        titulos = ["ID Pgto", "Funcionário", "Salário", "Adiantamento", "Total Mês", "Ano"]
+        titulos = ["ID Funcionário", "Funcionário", "Salário", "Adiantamento", "Total Mês", "Ano"]
 
         for c, t in zip(cols, titulos):
             tree.heading(c, text=t)
@@ -793,26 +800,17 @@ class App:
                 messagebox.showerror("Erro", "Mês inválido (1 a 12)")
                 return
 
-            conn = get_conn()
-            cur = conn.cursor()
-            cur.execute("""
-                SELECT
-                    f.id,
-                    f.nome,
-                    h.tipo,
-                    h.valor,
-                    h.mes,
-                    h.ano
-                FROM historico_pagamentos h
-                JOIN funcionarios f ON f.id = h.funcionario_id
-                WHERE h.mes = %s
-                AND h.ano = %s
-                ORDER BY id ASC
-            """, (mes, ano))
-
-
-            rows = cur.fetchall()
-            conn.close()
+            try:
+                registros = self.payments_repo.listar_por_mes(mes, ano)
+            except Exception:
+                logging.exception("Erro ao consultar relatório")
+                messagebox.showerror("Erro", "Não foi possível consultar os pagamentos.")
+                return
+            rows = [
+                (r["funcionario_id"], (r.get("funcionarios") or {}).get("nome", ""),
+                 r["tipo"], Decimal(str(r["valor"] or 0)), r["mes"], r["ano"])
+                for r in registros
+            ]
 
             from collections import defaultdict
 
@@ -1016,7 +1014,7 @@ class App:
         
     # ---------- EXCLUIR PAGAMENTO ----------
         def excluir_pagamento():
-            if self.perfil != "Master":
+            if not has_permission(self.perfil, "excluir_pagamento"):
                 messagebox.showerror(
                     "Permissão negada",
                     "Apenas o Master pode excluir pagamentos."
@@ -1028,8 +1026,8 @@ class App:
                 messagebox.showwarning("Atenção", "Selecione um pagamento")
                 return
 
-            func_id = tree.item(sel)["values"][0]
-            nome = tree.item(sel)["values"][1]
+            func_id = tree.item(sel[0])["values"][0]
+            nome = tree.item(sel[0])["values"][1]
             mes = int(ent_mes.get())
             ano = int(ent_ano.get())
 
@@ -1082,28 +1080,16 @@ class App:
                     ):
                     return
 
-                conn = get_conn()
-                cur = conn.cursor()
-
-                for tipo in tipos:
-                    cur.execute("""
-                        DELETE FROM historico_pagamentos
-                        WHERE funcionario_id = %s
-                        AND tipo = %s
-                        AND mes = %s
-                        AND ano = %s
-                    """, (func_id, tipo, mes, ano))
-
-                conn.commit()
-                conn.close()
+                try:
+                    self.payments_repo.excluir(func_id, tipos, mes, ano)
+                except Exception:
+                    logging.exception("Erro ao excluir pagamento")
+                    messagebox.showerror("Erro", "Não foi possível excluir o pagamento.")
+                    return
 
                 win.destroy()
-                filtrar()  # 🔄 recarrega do banco
-
-            messagebox.showinfo(
-                "Sucesso",
-                "Pagamento(s) excluído(s) com sucesso."
-            )
+                filtrar()
+                messagebox.showinfo("Sucesso", "Pagamento(s) excluído(s) com sucesso.")
 
             tk.Button(frame_btn, text="Confirmar", width=12, command=confirmar_exclusao).pack(side="left", expand=True, padx=5)
 

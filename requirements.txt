@@ -1,5 +1,4 @@
 
-=======
 dotenv==0.9.9
 pandas==2.3.3
 pillow==12.1.0
@@ -11,4 +10,4 @@ supabase==2.27.2
 supabase-auth==2.27.2
 supabase-functions==2.27.2
 openpyxl==3.1.5
->>>>>>> ada67296dd6f1ee85de093ee982eef85747f04da
+requests>=2.32,<3

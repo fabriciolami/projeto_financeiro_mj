@@ -3,19 +3,22 @@ import importlib.util
 from pathlib import Path
 from supabase import create_client
 
-# Tenta usar a configuração local; em produção, usa variáveis de ambiente.
-try:
-    from config.local_config import SUPABASE_URL, SUPABASE_KEY
-except ImportError:
-    legacy_config = Path(__file__).with_name("local.config.py")
-    if legacy_config.exists():
-        spec = importlib.util.spec_from_file_location("config.local_config", legacy_config)
-        local_config = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(local_config)
-        SUPABASE_URL = local_config.SUPABASE_URL
-        SUPABASE_KEY = local_config.SUPABASE_KEY
-    else:
-        from config.app_config import SUPABASE_URL, SUPABASE_KEY
+# Os arquivos locais são opcionais e não fazem parte do repositório.
+# Aceita tanto o nome padrão quanto o nome legado usado no executável.
+for config_name in ("local_config.py", "local.config.py"):
+    config_path = Path(__file__).with_name(config_name)
+    if not config_path.is_file():
+        continue
+    spec = importlib.util.spec_from_file_location("config.local_config", config_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("Não foi possível carregar a configuração local do Supabase.")
+    local_config = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(local_config)
+    SUPABASE_URL = local_config.SUPABASE_URL
+    SUPABASE_KEY = local_config.SUPABASE_KEY
+    break
+else:
+    from config.app_config import SUPABASE_URL, SUPABASE_KEY
 
 _supabase = None
 

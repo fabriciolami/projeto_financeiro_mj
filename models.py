@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from config.supabase_client import get_supabase
 
@@ -61,6 +62,22 @@ class Funcionario:
         return None
 
     def salvar(self):
+        self.nome = self.nome.strip()
+        if not self.nome:
+            raise ValueError("Informe o nome do funcionário.")
+        for campo in ("salario", "adiantamento", "va", "desconto"):
+            try:
+                valor = Decimal(str(getattr(self, campo)))
+                if not valor.is_finite() or valor < 0:
+                    raise ValueError("Valores monetários devem ser finitos e não negativos.")
+                valor = valor.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                if valor > Decimal("9999999999.99"):
+                    raise ValueError("Valor acima do limite permitido.")
+                setattr(self, campo, float(valor))
+            except InvalidOperation as exc:
+                raise ValueError("Informe valores monetários válidos.") from exc
+        if self.desconto > self.salario + self.va:
+            raise ValueError("Desconto não pode ser maior que Salário + VA.")
         supabase = get_supabase()
         if supabase is None:
             raise RuntimeError("Supabase não configurado")

@@ -102,6 +102,8 @@ def iniciar_sistema():
                 App(root, usuario=usuario, perfil=perfil)
             except Exception:
                 log.exception("Erro ao abrir App principal")
+                mb.showerror("Erro", "Não foi possível carregar o sistema. Verifique a conexão e as permissões no Supabase.")
+                voltar_login()
 
         def voltar_login(event=None):
             for w in root.winfo_children():
