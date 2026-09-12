@@ -16,9 +16,6 @@ class LoginScreen:
         self.root = root
         self.callback_sucesso = callback_sucesso
         self.root.title("Sistema de Pagamento")
-        self.root.geometry("360x500")
-        self.root.resizable(False, False)
-        centralizar_janela(self.root)
         preparar_janela(self.root, 400, 520)
 
         self.build()

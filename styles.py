@@ -1,6 +1,7 @@
 # styles.py
 import tkinter as tk
 from tkinter import font
+import sys
 
 BTN_VERDE = {
     "bg": "#2ecc71",
@@ -64,11 +65,49 @@ def add_hover(widget, bg_hover, fg_hover=None):
     widget.bind("<Enter>", on_enter)
     widget.bind("<Leave>", on_leave)
 
-def centralizar_janela(janela):
+def centralizar_janela(janela, largura=None, altura=None):
     janela.update_idletasks()
 
-    largura = janela.winfo_width()
-    altura = janela.winfo_height()
+    # Identifica o monitor antes de aumentar a janela. Assim, uma janela que
+    # cresce sobre a segunda tela nao muda de monitor durante a centralizacao.
+    largura = largura or janela.winfo_width()
+    altura = altura or janela.winfo_height()
+
+    # No Windows, winfo_screenwidth/height pode representar a area combinada
+    # de varios monitores. Nesse caso, o centro calculado pode cair na segunda
+    # tela. Usa a area util do monitor em que a janela ja se encontra.
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            class MONITORINFO(ctypes.Structure):
+                _fields_ = [
+                    ("cbSize", wintypes.DWORD),
+                    ("rcMonitor", wintypes.RECT),
+                    ("rcWork", wintypes.RECT),
+                    ("dwFlags", wintypes.DWORD),
+                ]
+
+            user32 = ctypes.windll.user32
+            user32.MonitorFromWindow.argtypes = [wintypes.HWND, wintypes.DWORD]
+            user32.MonitorFromWindow.restype = wintypes.HANDLE
+            user32.GetMonitorInfoW.argtypes = [wintypes.HANDLE, ctypes.POINTER(MONITORINFO)]
+            user32.GetMonitorInfoW.restype = wintypes.BOOL
+            hwnd = janela.winfo_id()
+            monitor = user32.MonitorFromWindow(hwnd, 2)  # monitor mais proximo
+            info = MONITORINFO()
+            info.cbSize = ctypes.sizeof(MONITORINFO)
+
+            if monitor and user32.GetMonitorInfoW(monitor, ctypes.byref(info)):
+                area = info.rcWork
+                x = area.left + max(0, (area.right - area.left - largura) // 2)
+                y = area.top + max(0, (area.bottom - area.top - altura) // 2)
+                janela.geometry(f"{largura}x{altura}{x:+d}{y:+d}")
+                return
+        except (AttributeError, OSError):
+            # Mantem compatibilidade com ambientes Windows sem essas APIs.
+            pass
 
     tela_largura = janela.winfo_screenwidth()
     tela_altura = janela.winfo_screenheight()
@@ -79,9 +118,8 @@ def centralizar_janela(janela):
     janela.geometry(f"{largura}x{altura}+{x}+{y}")
 
 def preparar_janela(janela, largura, altura): # configura tamanho fixo
-    janela.geometry(f"{largura}x{altura}") # define tamanho
     janela.resizable(False, False) # desabilita redimensionamento
-    centralizar_janela(janela) # centraliza
+    centralizar_janela(janela, largura, altura) # dimensiona e centraliza
     janela.focus_force() # força foco na janela
 
 def entry_rounded(master, show=None):

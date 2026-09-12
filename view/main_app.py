@@ -40,9 +40,8 @@ class App:
         self.ano_atual = datetime.now().year
         
         root.title(f"Sistema de Pagamentos - {perfil}")
-        root.geometry("1450x800")
         root.resizable(True, True)
-        centralizar_janela(root)
+        centralizar_janela(root, 1450, 800)
 
         self.vars = {k: tk.StringVar() for k in
                      ["nome", "admissao", "banco", "pix", "desconto", "salario", "adiant", "va"]}
