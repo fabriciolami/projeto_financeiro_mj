@@ -4,10 +4,12 @@ import base64
 import json
 from pathlib import Path
 
+project_dir = Path(SPECPATH)
+
 # Inclui somente a configuração pública necessária nas outras máquinas.
-config_path = Path('config/local_config.py')
+config_path = project_dir / 'config/local_config.py'
 if not config_path.exists():
-    config_path = Path('config/local.config.py')
+    config_path = project_dir / 'config/local.config.py'
 if not config_path.exists():
     raise RuntimeError('Configure o Supabase local antes de gerar o executável.')
 config_values = {}
@@ -24,7 +26,7 @@ if not public_key and key.count('.') == 2:
     public_key = claims.get('role') == 'anon'
 if not public_key or not config_values.get('SUPABASE_URL'):
     raise RuntimeError('O aplicativo distribuído exige URL e chave pública do Supabase.')
-public_config = Path('build/public_config/local.config.py')
+public_config = project_dir / 'build/public_config/local.config.py'
 public_config.parent.mkdir(parents=True, exist_ok=True)
 public_config.write_text(
     'SUPABASE_URL = ' + repr(config_values['SUPABASE_URL']) + '\n'
@@ -32,12 +34,12 @@ public_config.write_text(
 
 
 a = Analysis(
-    ['main.py'],
-    pathex=['.'],
+    [str(project_dir / 'main.py')],
+    pathex=[str(project_dir)],
     binaries=[],
     datas=[
         (str(public_config), 'config'),
-        ('img', 'img'),
+        (str(project_dir / 'img'), 'img'),
     ],
     hiddenimports=['openpyxl'],
     hookspath=[],
@@ -59,7 +61,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,
